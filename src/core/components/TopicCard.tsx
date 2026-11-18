@@ -14,6 +14,7 @@ export interface TopicCardConfig {
   available: boolean;
   accentColor: 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose';
   icon: LucideIcon;
+  imageUrl?: string;
   subtopics: string[];
   competenceGoalsCount: number;
 }
@@ -110,40 +111,68 @@ export function TopicCard({ topic, progress, onSelect }: TopicCardProps) {
           onSelect(topic.route);
         }
       }}
-      className={`group glass-panel relative flex flex-col justify-between rounded-2xl p-6 transition-all duration-300 ${
+      className={`group glass-panel relative flex flex-col justify-between overflow-hidden rounded-2xl transition-all duration-300 ${
         topic.available
           ? `cursor-pointer ${styles.borderHover} hover:-translate-y-1 hover:shadow-2xl ${styles.glow}`
-          : 'opacity-70 cursor-not-allowed border-slate-700/40'
+          : 'opacity-75 cursor-not-allowed border-slate-700/40'
       }`}
     >
-      <div>
-        {/* Header row */}
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ${styles.iconBox}`}
+      {topic.imageUrl && (
+        <div className="relative aspect-video w-full overflow-hidden border-b border-slate-800/80 bg-slate-950">
+          <img
+            src={topic.imageUrl}
+            alt={topic.title}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0B1222] via-transparent to-black/20" />
+          <div className="absolute top-3 left-3 flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase backdrop-blur-md ${styles.badge}`}
             >
-              <Icon className="h-5 w-5" />
-            </div>
-            <div>
-              <span
-                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${styles.badge}`}
-              >
-                Emne {topic.emneNumber} • {topic.code}
-              </span>
-              <h3 className="font-display mt-1 text-lg font-bold text-slate-50">
-                {topic.title}
-              </h3>
-            </div>
+              Emne {topic.emneNumber} • {topic.code}
+            </span>
           </div>
-
           {!topic.available && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-400">
+            <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/85 px-2.5 py-1 text-[11px] font-medium text-slate-300 backdrop-blur-md">
               <Lock className="h-3 w-3" />
               Kommer
             </span>
           )}
         </div>
+      )}
+
+      <div className="flex flex-1 flex-col justify-between p-6">
+        <div>
+          {/* Header row */}
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${styles.iconBox}`}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+              <div>
+                {!topic.imageUrl && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${styles.badge}`}
+                  >
+                    Emne {topic.emneNumber} • {topic.code}
+                  </span>
+                )}
+                <h3 className="font-display text-lg font-bold text-slate-50">
+                  {topic.title}
+                </h3>
+              </div>
+            </div>
+
+            {!topic.imageUrl && !topic.available && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-400">
+                <Lock className="h-3 w-3" />
+                Kommer
+              </span>
+            )}
+          </div>
 
         <p className="mb-4 text-sm leading-relaxed text-slate-300/90">
           {topic.description}
@@ -206,6 +235,7 @@ export function TopicCard({ topic, progress, onSelect }: TopicCardProps) {
             <span className="font-medium text-slate-500">Planlagt</span>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
