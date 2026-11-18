@@ -1,6 +1,7 @@
 import { Minimize } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { AnimalCellExplorer } from './components/AnimalCellExplorer';
+import { BiologyMindMap } from './components/BiologyMindMap';
 import { DnaReplicationExplorer } from './components/DnaReplicationExplorer';
 import { HumanBodyExplorer } from './components/HumanBodyExplorer';
 import { ImageLightbox } from './components/ImageLightbox';
@@ -12,9 +13,11 @@ import { QrShareModal } from './components/QrShareModal';
 import { QuizModal } from './components/QuizModal';
 import { TimelineDock } from './components/TimelineDock';
 import { TopBar } from './components/TopBar';
+import { BIOLOGY_CENTER_NODE } from './data/biologyHubData';
 import {
   THEME_LIST,
   THEMES,
+  type AppView,
   type ThemeId,
 } from './data/themes';
 import { progressService } from '../../core/storage';
@@ -42,7 +45,8 @@ function createInitialProgress(): Record<ThemeId, ThemeProgressState> {
 }
 
 export function App() {
-  const [activeThemeId, setActiveThemeId] = useState<ThemeId>('livets-tre');
+  const [activeView, setActiveView] = useState<AppView>('biologi');
+  const [activeThemeId, setActiveThemeId] = useState<ThemeId>('dyrecellen');
   const [progressByTheme, setProgressByTheme] = useState<
     Record<ThemeId, ThemeProgressState>
   >(createInitialProgress);
@@ -53,6 +57,7 @@ export function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCinemaFallback, setIsCinemaFallback] = useState(false);
 
+  const isMindMap = activeView === 'biologi';
   const activeTheme = THEMES[activeThemeId];
   const progress = progressByTheme[activeThemeId];
   const {
@@ -65,22 +70,34 @@ export function App() {
   useEffect(() => {
     window.focus();
     progressService.markModuleVisited('livets-tre');
-    progressService.markSubchapterCompleted('livets-tre', 'livets-tre');
   }, []);
 
   useEffect(() => {
-    document.title = `${activeTheme.title} | Naturfag Vg1`;
-  }, [activeTheme.title]);
+    const pageTitle = isMindMap
+      ? BIOLOGY_CENTER_NODE.dropdownTitle
+      : activeTheme.title;
+    document.title = `${pageTitle} | Naturfag Vg1`;
+  }, [activeTheme.title, isMindMap]);
 
-  const handleSelectTheme = useCallback((nextThemeId: ThemeId) => {
-    setActiveThemeId(nextThemeId);
-    progressService.markSubchapterCompleted('livets-tre', nextThemeId);
+  const handleSelectView = useCallback((nextView: AppView) => {
+    setActiveView(nextView);
+    if (nextView !== 'biologi') {
+      setActiveThemeId(nextView);
+      progressService.markSubchapterCompleted('livets-tre', nextView);
+    }
     setIsQuizOpen(false);
     setLightboxNode(null);
     if (window.innerWidth < 1024) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, []);
+
+  const handleSelectTheme = useCallback(
+    (nextThemeId: ThemeId) => {
+      handleSelectView(nextThemeId);
+    },
+    [handleSelectView],
+  );
 
   const jumpToStep = useCallback(
     (nextIdx: number) => {
@@ -304,12 +321,13 @@ export function App() {
     <div className="min-h-screen lg:h-screen flex flex-col oceanic-canvas text-slate-100 overflow-x-hidden lg:overflow-hidden relative">
       {!isCinemaFallback ? (
         <TopBar
+          activeView={activeView}
           activeTheme={activeTheme}
           currentStepIndex={currentStepIndex}
           showAllSteps={showAllSteps}
           isQuizOpen={isQuizOpen}
           isFullscreen={isFullscreen}
-          onSelectTheme={handleSelectTheme}
+          onSelectView={handleSelectView}
           onToggleShowAll={handleToggleShowAll}
           onToggleQuiz={() => setIsQuizOpen((prev) => !prev)}
           onOpenQrModal={() => setIsQrOpen(true)}
@@ -328,86 +346,92 @@ export function App() {
         </button>
       )}
 
-      {/* Main split classroom stage: Left/Top Interactive Canvas + Right Info Card */}
-      <main className="flex-1 min-h-0 p-3 pb-24 sm:p-4 sm:pb-24 lg:px-6 lg:py-4 lg:pb-4 grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 max-w-[1920px] w-full mx-auto">
-        <section
-          aria-label={activeTheme.title}
-          className="h-[42vh] min-h-[280px] sm:h-[50vh] lg:h-full lg:col-span-7 xl:col-span-7"
-        >
-          {activeThemeId === 'livets-tre' && (
-            <PhylogeneticTree
-              unlockedStepIndex={unlockedStepIndex}
-              showAllSteps={showAllSteps}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={handleSelectNode}
-            />
-          )}
-          {activeThemeId === 'kroppens-evolusjon' && (
-            <HumanBodyExplorer
-              unlockedStepIndex={unlockedStepIndex}
-              showAllSteps={showAllSteps}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={handleSelectNode}
-            />
-          )}
-          {activeThemeId === 'dyrecellen' && (
-            <AnimalCellExplorer
-              unlockedStepIndex={unlockedStepIndex}
-              showAllSteps={showAllSteps}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={handleSelectNode}
-            />
-          )}
-          {activeThemeId === 'plantecellen' && (
-            <PlantCellExplorer
-              unlockedStepIndex={unlockedStepIndex}
-              showAllSteps={showAllSteps}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={handleSelectNode}
-            />
-          )}
-          {activeThemeId === 'dna-replikasjon' && (
-            <DnaReplicationExplorer
-              unlockedStepIndex={unlockedStepIndex}
-              showAllSteps={showAllSteps}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={handleSelectNode}
-            />
-          )}
-          {activeThemeId === 'proteinsyntesen' && (
-            <ProteinSynthesisTimeline
-              unlockedStepIndex={unlockedStepIndex}
-              showAllSteps={showAllSteps}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={handleSelectNode}
-            />
-          )}
-        </section>
+      {isMindMap ? (
+        <BiologyMindMap onSelectTheme={(id) => handleSelectView(id)} />
+      ) : (
+        <>
+          {/* Main split classroom stage: Left/Top Interactive Canvas + Right Info Card */}
+          <main className="flex-1 min-h-0 p-3 pb-24 sm:p-4 sm:pb-24 lg:px-6 lg:py-4 lg:pb-4 grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 max-w-[1920px] w-full mx-auto">
+            <section
+              aria-label={activeTheme.title}
+              className="h-[42vh] min-h-[280px] sm:h-[50vh] lg:h-full lg:col-span-7 xl:col-span-7"
+            >
+              {activeThemeId === 'livets-tre' && (
+                <PhylogeneticTree
+                  unlockedStepIndex={unlockedStepIndex}
+                  showAllSteps={showAllSteps}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={handleSelectNode}
+                />
+              )}
+              {activeThemeId === 'kroppens-evolusjon' && (
+                <HumanBodyExplorer
+                  unlockedStepIndex={unlockedStepIndex}
+                  showAllSteps={showAllSteps}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={handleSelectNode}
+                />
+              )}
+              {activeThemeId === 'dyrecellen' && (
+                <AnimalCellExplorer
+                  unlockedStepIndex={unlockedStepIndex}
+                  showAllSteps={showAllSteps}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={handleSelectNode}
+                />
+              )}
+              {activeThemeId === 'plantecellen' && (
+                <PlantCellExplorer
+                  unlockedStepIndex={unlockedStepIndex}
+                  showAllSteps={showAllSteps}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={handleSelectNode}
+                />
+              )}
+              {activeThemeId === 'dna-replikasjon' && (
+                <DnaReplicationExplorer
+                  unlockedStepIndex={unlockedStepIndex}
+                  showAllSteps={showAllSteps}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={handleSelectNode}
+                />
+              )}
+              {activeThemeId === 'proteinsyntesen' && (
+                <ProteinSynthesisTimeline
+                  unlockedStepIndex={unlockedStepIndex}
+                  showAllSteps={showAllSteps}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={handleSelectNode}
+                />
+              )}
+            </section>
 
-        <section
-          aria-label="Fagkort for valgt tema"
-          className="lg:h-full lg:col-span-5 xl:col-span-5 min-h-0"
-        >
-          <InfoPanel
+            <section
+              aria-label="Fagkort for valgt tema"
+              className="lg:h-full lg:col-span-5 xl:col-span-5 min-h-0"
+            >
+              <InfoPanel
+                activeTheme={activeTheme}
+                node={activeNode}
+                currentMainStepIndex={currentStepIndex}
+                onSelectNode={handleSelectNode}
+                onOpenLightbox={(node) => setLightboxNode(node)}
+                onSwitchTheme={handleSelectTheme}
+              />
+            </section>
+          </main>
+
+          <TimelineDock
             activeTheme={activeTheme}
-            node={activeNode}
-            currentMainStepIndex={currentStepIndex}
-            onSelectNode={handleSelectNode}
-            onOpenLightbox={(node) => setLightboxNode(node)}
-            onSwitchTheme={handleSelectTheme}
+            currentStepIndex={currentStepIndex}
+            unlockedStepIndex={unlockedStepIndex}
+            showAllSteps={showAllSteps}
+            onPrev={handlePrev}
+            onNext={handleNext}
+            onJumpToStep={jumpToStep}
           />
-        </section>
-      </main>
-
-      <TimelineDock
-        activeTheme={activeTheme}
-        currentStepIndex={currentStepIndex}
-        unlockedStepIndex={unlockedStepIndex}
-        showAllSteps={showAllSteps}
-        onPrev={handlePrev}
-        onNext={handleNext}
-        onJumpToStep={jumpToStep}
-      />
+        </>
+      )}
 
       {isQuizOpen && (
         <QuizModal

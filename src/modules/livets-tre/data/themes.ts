@@ -54,6 +54,8 @@ export type ThemeId =
   | 'dna-replikasjon'
   | 'proteinsyntesen';
 
+export type AppView = 'biologi' | ThemeId;
+
 export interface ThemeConfig {
   id: ThemeId;
   hash: string;
@@ -280,12 +282,12 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
 };
 
 export const THEME_LIST: ThemeConfig[] = [
-  THEMES['livets-tre'],
-  THEMES['kroppens-evolusjon'],
   THEMES.dyrecellen,
   THEMES.plantecellen,
   THEMES['dna-replikasjon'],
   THEMES.proteinsyntesen,
+  THEMES['livets-tre'],
+  THEMES['kroppens-evolusjon'],
 ];
 
 export function parseThemeFromHash(hash: string): ThemeId {

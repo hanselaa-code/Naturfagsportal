@@ -11,16 +11,24 @@ import {
   Maximize,
   Microscope,
   Minimize,
+  Network,
   PersonStanding,
   QrCode,
   RotateCcw,
   TreePine,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { THEME_LIST, type ThemeConfig, type ThemeId } from '../data/themes';
+import { BIOLOGY_CENTER_NODE } from '../data/biologyHubData';
+import {
+  THEME_LIST,
+  type AppView,
+  type ThemeConfig,
+} from '../data/themes';
 
-function getThemeIcon(themeId: ThemeId) {
+function getThemeIcon(themeId: AppView) {
   switch (themeId) {
+    case 'biologi':
+      return Network;
     case 'kroppens-evolusjon':
       return PersonStanding;
     case 'dyrecellen':
@@ -38,12 +46,13 @@ function getThemeIcon(themeId: ThemeId) {
 }
 
 interface TopBarProps {
+  activeView: AppView;
   activeTheme: ThemeConfig;
   currentStepIndex: number;
   showAllSteps: boolean;
   isQuizOpen: boolean;
   isFullscreen: boolean;
-  onSelectTheme: (themeId: ThemeId) => void;
+  onSelectView: (view: AppView) => void;
   onToggleShowAll: () => void;
   onToggleQuiz: () => void;
   onOpenQrModal: () => void;
@@ -52,12 +61,13 @@ interface TopBarProps {
 }
 
 export function TopBar({
+  activeView,
   activeTheme,
   currentStepIndex,
   showAllSteps,
   isQuizOpen,
   isFullscreen,
-  onSelectTheme,
+  onSelectView,
   onToggleShowAll,
   onToggleQuiz,
   onOpenQrModal,
@@ -67,6 +77,8 @@ export function TopBar({
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const isMindMap = activeView === 'biologi';
 
   useEffect(() => {
     if (!themeMenuOpen) return;
@@ -79,7 +91,13 @@ export function TopBar({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [themeMenuOpen]);
 
-  const ActiveIcon = getThemeIcon(activeTheme.id);
+  const ActiveIcon = getThemeIcon(activeView);
+  const activeBadge = isMindMap
+    ? BIOLOGY_CENTER_NODE.dropdownBadge
+    : activeTheme.dropdownBadge;
+  const activeTitle = isMindMap
+    ? BIOLOGY_CENTER_NODE.dropdownTitle
+    : activeTheme.dropdownTitle;
 
   return (
     <header className="relative z-30 flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3 border-b border-slate-800/80 bg-[#090E1A]/90 backdrop-blur-md">
@@ -101,16 +119,16 @@ export function TopBar({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/90 hidden sm:inline">
-                Tema
+                {isMindMap ? 'Hovedside' : 'Tema'}
               </span>
               <span className="hidden sm:inline text-slate-600">•</span>
               <span className="text-[10px] font-mono-time text-amber-300/90 truncate hidden sm:inline">
-                {activeTheme.dropdownBadge}
+                {activeBadge}
               </span>
             </div>
             <div className="flex items-center gap-1.5 min-w-0">
               <h1 className="text-xs sm:text-base lg:text-lg font-extrabold text-white truncate font-display">
-                {activeTheme.dropdownTitle}
+                {activeTitle}
               </h1>
               <ChevronDown
                 className={`w-4 h-4 text-emerald-300 shrink-0 transition-transform duration-200 ${
@@ -122,7 +140,7 @@ export function TopBar({
         </button>
 
         <p className="text-xs text-slate-400 hidden 2xl:block truncate max-w-md">
-          {activeTheme.subtitle}
+          {isMindMap ? BIOLOGY_CENTER_NODE.dropdownDescription : activeTheme.subtitle}
         </p>
 
         {/* Dropdown menu panel */}
@@ -130,13 +148,60 @@ export function TopBar({
           <div
             role="listbox"
             aria-label="Velg tema"
-            className="absolute left-0 top-full mt-2 w-[min(92vw,25rem)] p-2 rounded-2xl glass-panel border border-slate-700/90 shadow-2xl z-50 space-y-1.5 animate-card-enter"
+            className="absolute left-0 top-full mt-2 w-[min(92vw,26rem)] max-h-[75vh] overflow-y-auto custom-scrollbar p-2 rounded-2xl glass-panel border border-slate-700/90 shadow-2xl z-50 space-y-1.5 animate-card-enter"
           >
             <div className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Biologi • Oversikt & temaer
+            </div>
+
+            {/* Biologi Hub option */}
+            <button
+              id="theme-option-biologi"
+              type="button"
+              role="option"
+              aria-selected={isMindMap}
+              onClick={() => {
+                onSelectView('biologi');
+                setThemeMenuOpen(false);
+              }}
+              className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                isMindMap
+                  ? 'bg-emerald-500/18 border-emerald-400/50 text-white'
+                  : 'bg-slate-900/75 hover:bg-slate-800/90 border-slate-800 hover:border-slate-600 text-slate-200'
+              }`}
+            >
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${
+                  isMindMap
+                    ? 'bg-emerald-400 text-slate-950 border-emerald-300'
+                    : 'bg-slate-800/90 text-emerald-300 border-slate-700'
+                }`}
+              >
+                <Network className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-extrabold font-display text-white">
+                    {BIOLOGY_CENTER_NODE.dropdownTitle}
+                  </span>
+                  {isMindMap && (
+                    <Check className="w-4 h-4 text-emerald-300 shrink-0" />
+                  )}
+                </div>
+                <div className="text-[11px] font-mono-time text-amber-300/90 mt-0.5">
+                  {BIOLOGY_CENTER_NODE.dropdownBadge}
+                </div>
+                <p className="text-xs text-slate-300 mt-1 leading-snug">
+                  {BIOLOGY_CENTER_NODE.dropdownDescription}
+                </p>
+              </div>
+            </button>
+
+            <div className="px-2.5 pt-1.5 pb-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               Velg interaktivt tema ({THEME_LIST.length})
             </div>
-            {THEME_LIST.map((themeItem) => {
-              const isCurrent = themeItem.id === activeTheme.id;
+            {THEME_LIST.map((themeItem, idx) => {
+              const isCurrent = !isMindMap && themeItem.id === activeTheme.id;
               const ItemIcon = getThemeIcon(themeItem.id);
 
               return (
@@ -147,7 +212,7 @@ export function TopBar({
                   role="option"
                   aria-selected={isCurrent}
                   onClick={() => {
-                    onSelectTheme(themeItem.id);
+                    onSelectView(themeItem.id);
                     setThemeMenuOpen(false);
                   }}
                   className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${
@@ -168,7 +233,7 @@ export function TopBar({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-extrabold font-display text-white">
-                        {themeItem.dropdownTitle}
+                        {idx + 1}. {themeItem.dropdownTitle}
                       </span>
                       {isCurrent && (
                         <Check className="w-4 h-4 text-emerald-300 shrink-0" />
@@ -190,12 +255,14 @@ export function TopBar({
 
       {/* Right toolbar controls */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-medium text-slate-300">
-          <span>{activeTheme.stepWord}:</span>
-          <span className="font-mono-time font-bold text-emerald-300">
-            {currentStepIndex + 1} / {activeTheme.mainStepIds.length}
-          </span>
-        </div>
+        {!isMindMap && (
+          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-medium text-slate-300">
+            <span>{activeTheme.stepWord}:</span>
+            <span className="font-mono-time font-bold text-emerald-300">
+              {currentStepIndex + 1} / {activeTheme.mainStepIds.length}
+            </span>
+          </div>
+        )}
 
         {/* QR Code button for sharing with students on mobile */}
         <button
@@ -210,29 +277,31 @@ export function TopBar({
         </button>
 
         {/* Toggle progressive reveal vs full tree/map */}
-        <button
-          id="btn-toggle-all-steps"
-          type="button"
-          onClick={onToggleShowAll}
-          className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-            showAllSteps
-              ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-200'
-              : 'bg-slate-900/80 hover:bg-slate-800 border-slate-700/80 text-slate-200'
-          }`}
-          title={`Veksle mellom stegvis fremføring og ${activeTheme.showAllLabel.toLowerCase()}`}
-        >
-          {showAllSteps ? (
-            <EyeOff className="w-3.5 h-3.5" />
-          ) : (
-            <Eye className="w-3.5 h-3.5" />
-          )}
-          <span className="hidden lg:inline">
-            {showAllSteps ? activeTheme.progressiveLabel : activeTheme.showAllLabel}
-          </span>
-        </button>
+        {!isMindMap && (
+          <button
+            id="btn-toggle-all-steps"
+            type="button"
+            onClick={onToggleShowAll}
+            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+              showAllSteps
+                ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-200'
+                : 'bg-slate-900/80 hover:bg-slate-800 border-slate-700/80 text-slate-200'
+            }`}
+            title={`Veksle mellom stegvis fremføring og ${activeTheme.showAllLabel.toLowerCase()}`}
+          >
+            {showAllSteps ? (
+              <EyeOff className="w-3.5 h-3.5" />
+            ) : (
+              <Eye className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden lg:inline">
+              {showAllSteps ? activeTheme.progressiveLabel : activeTheme.showAllLabel}
+            </span>
+          </button>
+        )}
 
         {/* Restart presentation */}
-        {currentStepIndex > 0 && (
+        {!isMindMap && currentStepIndex > 0 && (
           <button
             id="btn-reset-presentation"
             type="button"
@@ -245,23 +314,25 @@ export function TopBar({
         )}
 
         {/* Kontrollspørsmål button */}
-        <button
-          id="btn-open-quiz"
-          type="button"
-          onClick={onToggleQuiz}
-          className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-            isQuizOpen
-              ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
-              : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-400/40 text-amber-200'
-          }`}
-        >
-          <HelpCircle className="w-4 h-4" />
-          <span className="hidden sm:inline">Kontrollspørsmål</span>
-          <span className="sm:hidden">Spørsmål</span>
-          <kbd className="hidden md:inline-block px-1.5 py-0.5 text-[10px] rounded bg-black/25 font-mono-time">
-            Q
-          </kbd>
-        </button>
+        {!isMindMap && (
+          <button
+            id="btn-open-quiz"
+            type="button"
+            onClick={onToggleQuiz}
+            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              isQuizOpen
+                ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-400/40 text-amber-200'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Kontrollspørsmål</span>
+            <span className="sm:hidden">Spørsmål</span>
+            <kbd className="hidden md:inline-block px-1.5 py-0.5 text-[10px] rounded bg-black/25 font-mono-time">
+              Q
+            </kbd>
+          </button>
+        )}
 
         {/* Keyboard shortcuts help (desktop/tablet) */}
         <div className="relative hidden sm:block">
