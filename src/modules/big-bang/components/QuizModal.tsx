@@ -15,7 +15,8 @@ import {
   Trophy,
   XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { progressService } from '../../../core/storage';
 import type { McqQuestionItem } from '../data/mcqQuestionsData';
 import type { ThemeConfig } from '../data/themes';
 
@@ -207,6 +208,17 @@ export function QuizModal({
   }, 0);
   const allMcqAnswered =
     mcqQuestions.length > 0 && answeredCount === mcqQuestions.length;
+
+  useEffect(() => {
+    if (allMcqAnswered) {
+      progressService.saveQuizScore(
+        'big-bang',
+        activeTheme.id,
+        correctCount,
+        mcqQuestions.length,
+      );
+    }
+  }, [allMcqAnswered, activeTheme.id, correctCount, mcqQuestions.length]);
 
   const activeMcq = mcqQuestions[currentMcqIndex] ?? mcqQuestions[0];
   const activeChosenIndex = activeMcq

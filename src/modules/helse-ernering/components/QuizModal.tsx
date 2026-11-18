@@ -8,6 +8,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
+import { progressService } from '../../../core/storage';
 import type { ThemeConfig } from '../data/types';
 
 interface QuizModalProps {
@@ -44,6 +45,12 @@ export function QuizModal({
   const handleNext = () => {
     if (currentIdx + 1 >= questions.length) {
       setIsFinished(true);
+      progressService.saveQuizScore(
+        'helse-ernering',
+        activeTheme.id,
+        score,
+        questions.length,
+      );
     } else {
       setCurrentIdx((prev) => prev + 1);
       setSelectedOption(null);
