@@ -234,9 +234,13 @@ export function KarbonHub({ onSelectTheme }: KarbonHubProps) {
                   x={node.cx}
                   y={node.cy + 16}
                   textAnchor="middle"
-                  className="fill-slate-400 text-[10.5px] font-medium"
+                  className={
+                    node.ready
+                      ? 'fill-emerald-300 text-[10.5px] font-bold'
+                      : 'fill-slate-400 text-[10.5px] font-medium'
+                  }
                 >
-                  {node.ready ? 'Klar' : 'Meny opprettet'}
+                  {node.ready ? 'Klar • Utforsk' : 'Meny opprettet'}
                 </text>
               </g>
             );

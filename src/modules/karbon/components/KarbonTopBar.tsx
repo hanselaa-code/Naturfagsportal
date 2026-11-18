@@ -2,11 +2,16 @@ import {
   Atom,
   Check,
   ChevronDown,
+  Eye,
+  EyeOff,
   FlaskConical,
   Flame,
   Globe2,
+  HelpCircle,
   Hexagon,
   Layers,
+  Maximize,
+  Minimize,
   Network,
   Sparkles,
 } from 'lucide-react';
@@ -42,15 +47,35 @@ export function getKarbonIcon(view: KarbonAppView) {
 
 interface KarbonTopBarProps {
   activeView: KarbonAppView;
+  currentStepIndex: number;
+  totalSteps: number;
+  showAllSteps: boolean;
+  isQuizOpen: boolean;
+  isFullscreen: boolean;
   onSelectView: (view: KarbonAppView) => void;
+  onToggleShowAll: () => void;
+  onToggleQuiz: () => void;
+  onToggleFullscreen: () => void;
 }
 
-export function KarbonTopBar({ activeView, onSelectView }: KarbonTopBarProps) {
+export function KarbonTopBar({
+  activeView,
+  currentStepIndex,
+  totalSteps,
+  showAllSteps,
+  isQuizOpen,
+  isFullscreen,
+  onSelectView,
+  onToggleShowAll,
+  onToggleQuiz,
+  onToggleFullscreen,
+}: KarbonTopBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   const isHub = activeView === 'karbon';
   const activeMeta = !isHub ? KARBON_THEMES[activeView] : null;
+  const isReadyTopic = Boolean(activeMeta?.ready);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -75,7 +100,7 @@ export function KarbonTopBar({ activeView, onSelectView }: KarbonTopBarProps) {
     : activeMeta!.dropdownTitle;
 
   return (
-    <header className="relative z-30 flex items-center justify-between gap-3 px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3 border-b border-slate-800/80 bg-[#090E1A]/90 backdrop-blur-md">
+    <header className="relative z-30 flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3 border-b border-slate-800/80 bg-[#090E1A]/90 backdrop-blur-md">
       <div
         ref={dropdownRef}
         className="relative flex items-center gap-2.5 sm:gap-3 min-w-0"
@@ -238,16 +263,83 @@ export function KarbonTopBar({ activeView, onSelectView }: KarbonTopBarProps) {
         )}
       </div>
 
-      {!isHub && (
-        <button
-          type="button"
-          onClick={() => onSelectView('karbon')}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer shrink-0"
-        >
-          <Network className="w-3.5 h-3.5 text-violet-300" />
-          <span>Tilbake til oversikt</span>
-        </button>
-      )}
+      {/* Right Classroom Controls */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {isReadyTopic && (
+          <>
+            <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-medium text-slate-300">
+              <span>Steg:</span>
+              <span className="font-mono font-bold text-violet-300">
+                {currentStepIndex + 1} / {totalSteps}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={onToggleShowAll}
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                showAllSteps
+                  ? 'bg-violet-500/20 border-violet-400/40 text-violet-200'
+                  : 'bg-slate-900/80 hover:bg-slate-800 border-slate-700/80 text-slate-200'
+              }`}
+              title="Veksle mellom stegvis fremføring og fri utforsking"
+            >
+              {showAllSteps ? (
+                <EyeOff className="w-3.5 h-3.5" />
+              ) : (
+                <Eye className="w-3.5 h-3.5" />
+              )}
+              <span className="hidden lg:inline">
+                {showAllSteps ? 'Stegvis modus' : 'Lås opp alle steg'}
+              </span>
+            </button>
+
+            <button
+              id="btn-karbon-quiz"
+              type="button"
+              onClick={onToggleQuiz}
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                isQuizOpen
+                  ? 'bg-amber-500 text-slate-950 border-amber-300'
+                  : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-400/40 text-amber-200'
+              }`}
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Kontrollspørsmål</span>
+              <kbd className="hidden md:inline-block px-1.5 py-0.5 text-[10px] rounded bg-black/25 font-mono">
+                Q
+              </kbd>
+            </button>
+
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              title="Fullskjermmodus (F)"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+            >
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4 text-violet-300" />
+              ) : (
+                <Maximize className="w-4 h-4 text-slate-300" />
+              )}
+              <span className="hidden xl:inline">
+                {isFullscreen ? 'Avslutt' : 'Fullskjerm'}
+              </span>
+            </button>
+          </>
+        )}
+
+        {!isHub && !isReadyTopic && (
+          <button
+            type="button"
+            onClick={() => onSelectView('karbon')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+          >
+            <Network className="w-3.5 h-3.5 text-violet-300" />
+            <span>Tilbake til oversikt</span>
+          </button>
+        )}
+      </div>
     </header>
   );
 }

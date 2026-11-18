@@ -1,8 +1,18 @@
-import { ArrowLeft, ArrowRight, Construction } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, ArrowRight, Construction, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { progressService } from '../../core/storage';
+import { AtomBindingExplorer } from './components/AtomBindingExplorer';
 import { KarbonHub } from './components/KarbonHub';
+import { KarbonInfoPanel } from './components/KarbonInfoPanel';
+import { KarbonQuizModal } from './components/KarbonQuizModal';
+import { KarbonStepDock } from './components/KarbonStepDock';
 import { getKarbonIcon, KarbonTopBar } from './components/KarbonTopBar';
+import {
+  ATOM_BINDING_CONTROL_QUESTIONS,
+  ATOM_BINDING_MCQ_QUESTIONS,
+  ATOM_BINDING_STEPS,
+  type KarbonStepNode,
+} from './data/atomBindingData';
 import {
   KARBON_THEME_LIST,
   KARBON_THEMES,
@@ -11,6 +21,12 @@ import {
 
 export function KarbonModule() {
   const [activeView, setActiveView] = useState<KarbonAppView>('karbon');
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [unlockedStepIndex, setUnlockedStepIndex] = useState(0);
+  const [showAllSteps, setShowAllSteps] = useState(false);
+  const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [lightboxNode, setLightboxNode] = useState<KarbonStepNode | null>(null);
 
   useEffect(() => {
     progressService.markModuleVisited('kjemiske-bindinger');
@@ -24,6 +40,125 @@ export function KarbonModule() {
     document.title = `${title} | Naturfag Vg1`;
   }, [activeView]);
 
+  const handleSelectView = useCallback((nextView: KarbonAppView) => {
+    setActiveView(nextView);
+    setCurrentStepIndex(0);
+    setUnlockedStepIndex(0);
+    setIsQuizOpen(false);
+    setLightboxNode(null);
+    if (nextView === 'atommodell-bindinger') {
+      progressService.markSubchapterCompleted(
+        'kjemiske-bindinger',
+        'atommodell-bindinger',
+      );
+    }
+  }, []);
+
+  const jumpToStep = useCallback((nextIdx: number) => {
+    const clamped = Math.max(
+      0,
+      Math.min(ATOM_BINDING_STEPS.length - 1, nextIdx),
+    );
+    setCurrentStepIndex(clamped);
+    setUnlockedStepIndex((prev) => Math.max(prev, clamped));
+  }, []);
+
+  const handleNext = useCallback(() => {
+    if (isQuizOpen) return;
+    if (currentStepIndex < ATOM_BINDING_STEPS.length - 1) {
+      jumpToStep(currentStepIndex + 1);
+    } else {
+      setIsQuizOpen(true);
+    }
+  }, [currentStepIndex, isQuizOpen, jumpToStep]);
+
+  const handlePrev = useCallback(() => {
+    if (isQuizOpen) {
+      setIsQuizOpen(false);
+      return;
+    }
+    if (currentStepIndex > 0) {
+      jumpToStep(currentStepIndex - 1);
+    }
+  }, [currentStepIndex, isQuizOpen, jumpToStep]);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Ignore fullscreen refusal
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  // PowerPoint keyboard navigation for ready subtopics
+  useEffect(() => {
+    if (activeView !== 'atommodell-bindinger') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (lightboxNode) {
+          setLightboxNode(null);
+          return;
+        }
+        if (isQuizOpen) {
+          setIsQuizOpen(false);
+          return;
+        }
+      }
+
+      if ((e.key === 'q' || e.key === 'Q') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setIsQuizOpen((prev) => !prev);
+        return;
+      }
+
+      if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        void toggleFullscreen();
+        return;
+      }
+
+      if (lightboxNode || isQuizOpen) return;
+
+      if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        handlePrev();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    activeView,
+    handleNext,
+    handlePrev,
+    isQuizOpen,
+    lightboxNode,
+    toggleFullscreen,
+  ]);
+
   const activeMeta = activeView === 'karbon' ? null : KARBON_THEMES[activeView];
   const currentIdx = activeMeta
     ? KARBON_THEME_LIST.findIndex((t) => t.id === activeMeta.id)
@@ -35,12 +170,60 @@ export function KarbonModule() {
       ? KARBON_THEME_LIST[currentIdx + 1]
       : null;
 
+  const activeStep = ATOM_BINDING_STEPS[currentStepIndex];
+
   return (
     <div className="min-h-screen lg:h-screen flex flex-col bg-[#080D1A] text-slate-100 overflow-x-hidden lg:overflow-hidden relative">
-      <KarbonTopBar activeView={activeView} onSelectView={setActiveView} />
+      <KarbonTopBar
+        activeView={activeView}
+        currentStepIndex={currentStepIndex}
+        totalSteps={ATOM_BINDING_STEPS.length}
+        showAllSteps={showAllSteps}
+        isQuizOpen={isQuizOpen}
+        isFullscreen={isFullscreen}
+        onSelectView={handleSelectView}
+        onToggleShowAll={() => setShowAllSteps((prev) => !prev)}
+        onToggleQuiz={() => setIsQuizOpen((prev) => !prev)}
+        onToggleFullscreen={() => void toggleFullscreen()}
+      />
 
       {activeView === 'karbon' ? (
-        <KarbonHub onSelectTheme={(id) => setActiveView(id)} />
+        <KarbonHub onSelectTheme={handleSelectView} />
+      ) : activeView === 'atommodell-bindinger' ? (
+        <>
+          <main className="flex-1 min-h-0 p-3 pb-24 sm:p-4 sm:pb-24 lg:px-6 lg:py-4 lg:pb-4 grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 max-w-[1920px] w-full mx-auto">
+            <section
+              aria-label="Interaktiv Atom- og Bindingslab"
+              className="h-[46vh] min-h-[300px] sm:h-[52vh] lg:h-full lg:col-span-7"
+            >
+              <AtomBindingExplorer
+                currentStepIndex={currentStepIndex}
+                onSelectStep={jumpToStep}
+              />
+            </section>
+
+            <section
+              aria-label="Fagkort for kjemiske bindinger"
+              className="lg:h-full lg:col-span-5 min-h-0"
+            >
+              <KarbonInfoPanel
+                node={activeStep}
+                totalSteps={ATOM_BINDING_STEPS.length}
+                onOpenLightbox={setLightboxNode}
+              />
+            </section>
+          </main>
+
+          <KarbonStepDock
+            steps={ATOM_BINDING_STEPS}
+            currentStepIndex={currentStepIndex}
+            unlockedStepIndex={unlockedStepIndex}
+            showAllSteps={showAllSteps}
+            onPrev={handlePrev}
+            onNext={handleNext}
+            onJumpToStep={jumpToStep}
+          />
+        </>
       ) : (
         activeMeta && (
           <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
@@ -92,7 +275,7 @@ export function KarbonModule() {
                 <button
                   type="button"
                   onClick={() =>
-                    setActiveView(prevTheme ? prevTheme.id : 'karbon')
+                    handleSelectView(prevTheme ? prevTheme.id : 'karbon')
                   }
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
                 >
@@ -107,7 +290,7 @@ export function KarbonModule() {
                 {nextTheme && (
                   <button
                     type="button"
-                    onClick={() => setActiveView(nextTheme.id)}
+                    onClick={() => handleSelectView(nextTheme.id)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 border border-violet-400/40 text-xs font-bold text-violet-200 transition-colors cursor-pointer"
                   >
                     <span>
@@ -120,6 +303,53 @@ export function KarbonModule() {
             </div>
           </main>
         )
+      )}
+
+      {isQuizOpen && activeView === 'atommodell-bindinger' && (
+        <KarbonQuizModal
+          title="Kontrollspørsmål: Atommodell & kjemiske bindinger"
+          subchapterId="atommodell-bindinger"
+          controlQuestions={ATOM_BINDING_CONTROL_QUESTIONS}
+          mcqQuestions={ATOM_BINDING_MCQ_QUESTIONS}
+          onClose={() => setIsQuizOpen(false)}
+          onJumpToStep={jumpToStep}
+        />
+      )}
+
+      {lightboxNode && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+          onClick={() => setLightboxNode(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative max-w-4xl w-full rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setLightboxNode(null)}
+              className="absolute top-3 right-3 p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-white cursor-pointer"
+              aria-label="Lukk bilde"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <img
+              src={lightboxNode.image}
+              alt={lightboxNode.title}
+              className="w-full max-h-[75vh] object-contain bg-[#080D1A]"
+            />
+            <div className="p-4 border-t border-slate-800">
+              <div className="text-sm font-bold text-white">
+                {lightboxNode.title}
+              </div>
+              <p className="text-xs text-slate-300 mt-1">
+                {lightboxNode.imageCaption}
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

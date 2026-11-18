@@ -56,7 +56,7 @@ export const KARBON_THEME_LIST: KarbonThemeMeta[] = [
     cx: 540,
     cy: 105,
     r: 74,
-    ready: false,
+    ready: true,
   },
   {
     id: 'karbonatomet',
