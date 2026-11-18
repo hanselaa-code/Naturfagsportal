@@ -15,6 +15,7 @@ import {
   PersonStanding,
   QrCode,
   RotateCcw,
+  Sparkles,
   TreePine,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -29,6 +30,8 @@ function getThemeIcon(themeId: AppView) {
   switch (themeId) {
     case 'biologi':
       return Network;
+    case 'evolusjon':
+      return Sparkles;
     case 'kroppens-evolusjon':
       return PersonStanding;
     case 'dyrecellen':

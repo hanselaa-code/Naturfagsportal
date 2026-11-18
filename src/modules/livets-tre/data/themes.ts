@@ -11,6 +11,13 @@ import {
   DNA_NODES,
 } from './dnaReplicationData';
 import {
+  EVOLUTION_CONTROL_QUESTIONS,
+  EVOLUTION_MAIN_STEP_IDS,
+  EVOLUTION_MCQ_QUESTIONS,
+  EVOLUTION_NODE_MAP,
+  EVOLUTION_NODES,
+} from './evolutionData';
+import {
   BODY_CONTROL_QUESTIONS,
   BODY_MAIN_STEP_IDS,
   BODY_NODE_MAP,
@@ -52,7 +59,8 @@ export type ThemeId =
   | 'dyrecellen'
   | 'plantecellen'
   | 'dna-replikasjon'
-  | 'proteinsyntesen';
+  | 'proteinsyntesen'
+  | 'evolusjon';
 
 export type AppView = 'biologi' | ThemeId;
 
@@ -279,6 +287,39 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
       { label: 'Steg 9: 3D-folding & Golgi', idx: 8 },
     ],
   },
+  evolusjon: {
+    id: 'evolusjon',
+    hash: '#evolusjon',
+    title: 'Hva er evolusjon? – Drivkrefter, eksempler og bevis',
+    dropdownTitle: 'Hva er evolusjon?',
+    dropdownBadge: 'Grunnprinsipper • 8 steg',
+    dropdownDescription:
+      'Forstå hva evolusjon er, hvilke mekanismer som driver den, kjente eksempler og hvordan vi vet at den skjer.',
+    subtitle:
+      'Interaktiv klasseromspresentasjon • Naturlig utvalg, mutasjoner, eksempler & bevis',
+    stepWord: 'Steg',
+    showAllLabel: 'Vis alle 8 steg',
+    progressiveLabel: 'Stegvis modus',
+    quizTitle: 'Kontrollspørsmål: Hva er evolusjon?',
+    backFromQuizLabel: 'Tilbake til Hva er evolusjon?',
+    summaryHeadingPrefix: 'Kjernepoeng',
+    traitsHeading: 'Viktige begreper & mekanismer',
+    classroomBoxHeading: 'Prøv selv i klasserommet!',
+    examplesHeading: 'Sentrale eksempler',
+    mainStepIds: EVOLUTION_MAIN_STEP_IDS,
+    allNodes: EVOLUTION_NODES,
+    nodeMap: EVOLUTION_NODE_MAP,
+    controlQuestions: EVOLUTION_CONTROL_QUESTIONS,
+    mcqQuestions: EVOLUTION_MCQ_QUESTIONS,
+    quizShortcuts: [
+      { label: 'Steg 1: Hva er evolusjon?', idx: 0 },
+      { label: 'Steg 3: Naturlig utvalg', idx: 2 },
+      { label: 'Steg 5: Darwins finker & målere', idx: 4 },
+      { label: 'Steg 6: Antibiotikaresistens', idx: 5 },
+      { label: 'Steg 7: Fossiler & anatomi', idx: 6 },
+      { label: 'Steg 8: DNA & artsdannelse', idx: 7 },
+    ],
+  },
 };
 
 export const THEME_LIST: ThemeConfig[] = [
@@ -286,6 +327,7 @@ export const THEME_LIST: ThemeConfig[] = [
   THEMES.plantecellen,
   THEMES['dna-replikasjon'],
   THEMES.proteinsyntesen,
+  THEMES.evolusjon,
   THEMES['livets-tre'],
   THEMES['kroppens-evolusjon'],
 ];

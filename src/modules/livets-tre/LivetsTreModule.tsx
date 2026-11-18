@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AnimalCellExplorer } from './components/AnimalCellExplorer';
 import { BiologyMindMap } from './components/BiologyMindMap';
 import { DnaReplicationExplorer } from './components/DnaReplicationExplorer';
+import { EvolutionExplorer } from './components/EvolutionExplorer';
 import { HumanBodyExplorer } from './components/HumanBodyExplorer';
 import { ImageLightbox } from './components/ImageLightbox';
 import { InfoPanel } from './components/InfoPanel';
@@ -398,6 +399,14 @@ export function App() {
               )}
               {activeThemeId === 'proteinsyntesen' && (
                 <ProteinSynthesisTimeline
+                  unlockedStepIndex={unlockedStepIndex}
+                  showAllSteps={showAllSteps}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={handleSelectNode}
+                />
+              )}
+              {activeThemeId === 'evolusjon' && (
+                <EvolutionExplorer
                   unlockedStepIndex={unlockedStepIndex}
                   showAllSteps={showAllSteps}
                   selectedNodeId={selectedNodeId}
