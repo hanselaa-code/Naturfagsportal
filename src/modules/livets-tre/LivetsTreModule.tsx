@@ -4,6 +4,7 @@ import { AnimalCellExplorer } from './components/AnimalCellExplorer';
 import { BiologyMindMap } from './components/BiologyMindMap';
 import { DnaReplicationExplorer } from './components/DnaReplicationExplorer';
 import { EvolutionExplorer } from './components/EvolutionExplorer';
+import { GeneticsExplorer } from './components/GeneticsExplorer';
 import { HumanBodyExplorer } from './components/HumanBodyExplorer';
 import { ImageLightbox } from './components/ImageLightbox';
 import { InfoPanel } from './components/InfoPanel';
@@ -407,6 +408,14 @@ export function App() {
               )}
               {activeThemeId === 'evolusjon' && (
                 <EvolutionExplorer
+                  unlockedStepIndex={unlockedStepIndex}
+                  showAllSteps={showAllSteps}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={handleSelectNode}
+                />
+              )}
+              {activeThemeId === 'genetikk' && (
+                <GeneticsExplorer
                   unlockedStepIndex={unlockedStepIndex}
                   showAllSteps={showAllSteps}
                   selectedNodeId={selectedNodeId}

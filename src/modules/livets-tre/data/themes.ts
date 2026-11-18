@@ -18,6 +18,13 @@ import {
   EVOLUTION_NODES,
 } from './evolutionData';
 import {
+  GENETICS_CONTROL_QUESTIONS,
+  GENETICS_MAIN_STEP_IDS,
+  GENETICS_MCQ_QUESTIONS,
+  GENETICS_NODE_MAP,
+  GENETICS_NODES,
+} from './geneticsData';
+import {
   BODY_CONTROL_QUESTIONS,
   BODY_MAIN_STEP_IDS,
   BODY_NODE_MAP,
@@ -60,6 +67,7 @@ export type ThemeId =
   | 'plantecellen'
   | 'dna-replikasjon'
   | 'proteinsyntesen'
+  | 'genetikk'
   | 'evolusjon';
 
 export type AppView = 'biologi' | ThemeId;
@@ -287,6 +295,40 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
       { label: 'Steg 9: 3D-folding & Golgi', idx: 8 },
     ],
   },
+  genetikk: {
+    id: 'genetikk',
+    hash: '#genetikk',
+    title: 'Genetikk – Arv, alleler, meiose & krysningsskjema',
+    dropdownTitle: 'Genetikk',
+    dropdownBadge: 'Arvelighetskart & Punnett • 8 steg',
+    dropdownDescription:
+      'Utforsk gener og alleler, dominant/recessiv arv, meiose, interaktivt krysningsskjema, XX/XY, epigenetikk og CRISPR.',
+    subtitle:
+      'Interaktivt arvelighetskart & krysningsskjema • Fra gener og alleler til meiose, sannsynlighet og genteknologi',
+    stepWord: 'Steg',
+    showAllLabel: 'Vis hele kartet',
+    progressiveLabel: 'Stegvis modus',
+    quizTitle: 'Kontrollspørsmål: Genetikk',
+    backFromQuizLabel: 'Tilbake til Genetikk',
+    summaryHeadingPrefix: 'Kjernepoeng',
+    traitsHeading: 'Sentrale begreper & mekanismer',
+    classroomBoxHeading: 'Visste du dette?',
+    examplesHeading: 'Viktige eksempler & begreper',
+    mainStepIds: GENETICS_MAIN_STEP_IDS,
+    allNodes: GENETICS_NODES,
+    nodeMap: GENETICS_NODE_MAP,
+    controlQuestions: GENETICS_CONTROL_QUESTIONS,
+    mcqQuestions: GENETICS_MCQ_QUESTIONS,
+    quizShortcuts: [
+      { label: 'Steg 1: Gener & alleler', idx: 0 },
+      { label: 'Steg 2: Genotype & fenotype', idx: 1 },
+      { label: 'Steg 3: Dominant & recessiv arv', idx: 2 },
+      { label: 'Steg 4: Meiose (46 → 23)', idx: 3 },
+      { label: 'Steg 5: Krysningsskjema', idx: 4 },
+      { label: 'Steg 6: XX / XY & kjønnsbundet arv', idx: 5 },
+      { label: 'Steg 8: CRISPR & genteknologi', idx: 7 },
+    ],
+  },
   evolusjon: {
     id: 'evolusjon',
     hash: '#evolusjon',
@@ -327,6 +369,7 @@ export const THEME_LIST: ThemeConfig[] = [
   THEMES.plantecellen,
   THEMES['dna-replikasjon'],
   THEMES.proteinsyntesen,
+  THEMES.genetikk,
   THEMES.evolusjon,
   THEMES['livets-tre'],
   THEMES['kroppens-evolusjon'],
@@ -365,6 +408,12 @@ export function parseThemeFromHash(hash: string): ThemeId {
     clean === 'dna-til-protein'
   ) {
     return 'proteinsyntesen';
+  }
+  if (clean === 'genetikk' || clean === 'arv' || clean === 'punnett') {
+    return 'genetikk';
+  }
+  if (clean === 'evolusjon') {
+    return 'evolusjon';
   }
   return 'livets-tre';
 }

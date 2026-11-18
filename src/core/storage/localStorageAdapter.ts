@@ -7,7 +7,7 @@ export const DEFAULT_MODULE_TOTALS: Record<ModuleId, number> = {
   'kjemiske-bindinger': 5,
   'miljo-klima': 5,
   'helse-ernering': 7,
-  'livets-tre': 7,
+  'livets-tre': 8,
 };
 
 export function createInitialPortalProgress(): PortalProgressState {

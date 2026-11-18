@@ -5,6 +5,7 @@ import {
   Eye,
   EyeOff,
   FlaskConical,
+  GitBranch,
   HelpCircle,
   Keyboard,
   Leaf,
@@ -30,6 +31,8 @@ function getThemeIcon(themeId: AppView) {
   switch (themeId) {
     case 'biologi':
       return Network;
+    case 'genetikk':
+      return GitBranch;
     case 'evolusjon':
       return Sparkles;
     case 'kroppens-evolusjon':
