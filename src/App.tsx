@@ -5,6 +5,7 @@ import { PortalTopBar } from './core/components';
 import Dashboard from './pages/Dashboard';
 
 const BigBangModule = lazy(() => import('./modules/big-bang/BigBangModule'));
+const KarbonModule = lazy(() => import('./modules/karbon/KarbonModule'));
 const LivetsTreModule = lazy(
   () => import('./modules/livets-tre/LivetsTreModule'),
 );
@@ -46,6 +47,16 @@ export function App() {
             <Suspense fallback={<ModuleLoadingFallback title="Big Bang" />}>
               <ModuleShell>
                 <BigBangModule />
+              </ModuleShell>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/karbon"
+          element={
+            <Suspense fallback={<ModuleLoadingFallback title="Karbon" />}>
+              <ModuleShell>
+                <KarbonModule />
               </ModuleShell>
             </Suspense>
           }

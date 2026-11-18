@@ -4,7 +4,7 @@ const STORAGE_KEY = 'naturfag_vg1_progress_v1';
 
 export const DEFAULT_MODULE_TOTALS: Record<ModuleId, number> = {
   'big-bang': 6,
-  'kjemiske-bindinger': 5,
+  'kjemiske-bindinger': 7,
   'miljo-klima': 5,
   'helse-ernering': 7,
   'livets-tre': 8,
