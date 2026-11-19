@@ -191,7 +191,13 @@ export function KarbonModule() {
         <KarbonHub onSelectTheme={handleSelectView} />
       ) : activeView === 'atommodell-bindinger' ? (
         <>
-          <main className="flex-1 min-h-0 p-3 pb-24 sm:p-4 sm:pb-24 lg:px-6 lg:py-4 lg:pb-4 grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 max-w-[1920px] w-full mx-auto">
+          <main
+            className={`flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 w-full ${
+              isFullscreen
+                ? 'p-2 pb-20 sm:p-3 sm:pb-20 lg:px-3 lg:py-2 lg:pb-2 gap-2.5 sm:gap-3'
+                : 'p-3 pb-24 sm:p-4 sm:pb-24 lg:px-6 lg:py-4 lg:pb-4 gap-3.5 sm:gap-4 max-w-[1920px] mx-auto'
+            }`}
+          >
             <section
               aria-label="Interaktiv Atom- og Bindingslab"
               className="h-[46vh] min-h-[300px] sm:h-[52vh] lg:h-full lg:col-span-7"
@@ -209,6 +215,7 @@ export function KarbonModule() {
               <KarbonInfoPanel
                 node={activeStep}
                 totalSteps={ATOM_BINDING_STEPS.length}
+                isFullscreen={isFullscreen}
                 onOpenLightbox={setLightboxNode}
               />
             </section>
@@ -219,6 +226,7 @@ export function KarbonModule() {
             currentStepIndex={currentStepIndex}
             unlockedStepIndex={unlockedStepIndex}
             showAllSteps={showAllSteps}
+            isFullscreen={isFullscreen}
             onPrev={handlePrev}
             onNext={handleNext}
             onJumpToStep={jumpToStep}
