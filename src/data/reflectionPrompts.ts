@@ -118,4 +118,9 @@ export const REFLECTION_PROMPTS: Record<string, ClosingReflectionPrompt> = {
       'Både diamant og grafitt (blyantspiss) består av 100 % karbonatomer — hvordan kan det samme grunnstoffet lage verdens hardeste materiale og noe så mykt at det setter spor på papir?',
     hint: 'Tenk på hvordan de 4 kovalente bindingene til karbon er organisert i 3D (diamant) versus flate lag (grafitt).',
   },
+  karbonatomet: {
+    question:
+      'Når astrobiologer leter etter liv på andre planeter, leter de nesten alltid etter karbonbasert liv i flytende vann — ikke silisiumbasert liv. Hvorfor er karbon så vanskelig å erstatte?',
+    hint: 'Tenk på styrken i C–C-bindinger, evnen til å lage dobbeltbindinger og ringer, og forskjellen på å «puste ut» CO₂-gass versus fast SiO₂ (sand).',
+  },
 };

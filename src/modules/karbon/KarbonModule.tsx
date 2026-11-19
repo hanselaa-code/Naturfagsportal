@@ -9,6 +9,7 @@ import { QrShareModal } from '../../components/QrShareModal';
 import { progressService } from '../../core/storage';
 import { REFLECTION_PROMPTS } from '../../data/reflectionPrompts';
 import { AtomBindingExplorer } from './components/AtomBindingExplorer';
+import { KarbonAtometExplorer } from './components/KarbonAtometExplorer';
 import { KarbonHub } from './components/KarbonHub';
 import { KarbonInfoPanel } from './components/KarbonInfoPanel';
 import { KarbonQuizModal } from './components/KarbonQuizModal';
@@ -21,11 +22,22 @@ import {
   type KarbonStepNode,
 } from './data/atomBindingData';
 import {
+  KARBON_ATOMET_CONTROL_QUESTIONS,
+  KARBON_ATOMET_MCQ_QUESTIONS,
+  KARBON_ATOMET_STEPS,
+} from './data/karbonAtometData';
+import {
   KARBON_THEME_LIST,
   KARBON_THEMES,
   parseKarbonView,
   type KarbonAppView,
 } from './data/karbonThemes';
+
+function isReadySubtopic(
+  view: KarbonAppView,
+): view is 'atommodell-bindinger' | 'karbonatomet' {
+  return view === 'atommodell-bindinger' || view === 'karbonatomet';
+}
 
 export function KarbonModule() {
   const { tema } = useParams<{ tema?: string }>();
@@ -45,6 +57,17 @@ export function KarbonModule() {
   );
   const [lightboxNode, setLightboxNode] = useState<KarbonStepNode | null>(null);
 
+  const activeSteps: KarbonStepNode[] =
+    activeView === 'karbonatomet' ? KARBON_ATOMET_STEPS : ATOM_BINDING_STEPS;
+  const activeControlQuestions =
+    activeView === 'karbonatomet'
+      ? KARBON_ATOMET_CONTROL_QUESTIONS
+      : ATOM_BINDING_CONTROL_QUESTIONS;
+  const activeMcqQuestions =
+    activeView === 'karbonatomet'
+      ? KARBON_ATOMET_MCQ_QUESTIONS
+      : ATOM_BINDING_MCQ_QUESTIONS;
+
   useEffect(() => {
     progressService.markModuleVisited('kjemiske-bindinger');
   }, []);
@@ -57,11 +80,8 @@ export function KarbonModule() {
     setClosingSlide(null);
     setIsQuizOpen(false);
     setLightboxNode(null);
-    if (nextView === 'atommodell-bindinger') {
-      progressService.markSubchapterCompleted(
-        'kjemiske-bindinger',
-        'atommodell-bindinger',
-      );
+    if (isReadySubtopic(nextView)) {
+      progressService.markSubchapterCompleted('kjemiske-bindinger', nextView);
     }
   }, [tema]);
 
@@ -81,26 +101,23 @@ export function KarbonModule() {
       setClosingSlide(null);
       setIsQuizOpen(false);
       setLightboxNode(null);
-      if (nextView === 'atommodell-bindinger') {
-        progressService.markSubchapterCompleted(
-          'kjemiske-bindinger',
-          'atommodell-bindinger',
-        );
+      if (isReadySubtopic(nextView)) {
+        progressService.markSubchapterCompleted('kjemiske-bindinger', nextView);
       }
       navigate(nextView === 'karbon' ? '/karbon' : `/karbon/${nextView}`);
     },
     [navigate],
   );
 
-  const jumpToStep = useCallback((nextIdx: number) => {
-    const clamped = Math.max(
-      0,
-      Math.min(ATOM_BINDING_STEPS.length - 1, nextIdx),
-    );
-    setClosingSlide(null);
-    setCurrentStepIndex(clamped);
-    setUnlockedStepIndex((prev) => Math.max(prev, clamped));
-  }, []);
+  const jumpToStep = useCallback(
+    (nextIdx: number) => {
+      const clamped = Math.max(0, Math.min(activeSteps.length - 1, nextIdx));
+      setClosingSlide(null);
+      setCurrentStepIndex(clamped);
+      setUnlockedStepIndex((prev) => Math.max(prev, clamped));
+    },
+    [activeSteps.length],
+  );
 
   const handleNext = useCallback(() => {
     if (isQuizOpen || isQrOpen) return;
@@ -112,7 +129,7 @@ export function KarbonModule() {
       setIsQuizOpen(true);
       return;
     }
-    if (currentStepIndex < ATOM_BINDING_STEPS.length - 1) {
+    if (currentStepIndex < activeSteps.length - 1) {
       jumpToStep(currentStepIndex + 1);
     } else if (isFullscreen) {
       setClosingSlide('summary');
@@ -120,6 +137,7 @@ export function KarbonModule() {
       setIsQuizOpen(true);
     }
   }, [
+    activeSteps.length,
     closingSlide,
     currentStepIndex,
     isFullscreen,
@@ -220,7 +238,7 @@ export function KarbonModule() {
         return;
       }
 
-      if (activeView !== 'atommodell-bindinger') return;
+      if (!isReadySubtopic(activeView)) return;
 
       if (
         (e.key === 'q' || e.key === 'Q') &&
@@ -278,14 +296,14 @@ export function KarbonModule() {
       ? KARBON_THEME_LIST[currentIdx + 1]
       : null;
 
-  const activeStep = ATOM_BINDING_STEPS[currentStepIndex];
+  const activeStep = activeSteps[currentStepIndex] ?? activeSteps[0];
 
   return (
     <div className="min-h-screen lg:h-screen flex flex-col bg-[#080D1A] text-slate-100 overflow-x-hidden lg:overflow-hidden relative">
       <KarbonTopBar
         activeView={activeView}
         currentStepIndex={currentStepIndex}
-        totalSteps={ATOM_BINDING_STEPS.length}
+        totalSteps={activeSteps.length}
         showAllSteps={showAllSteps}
         isQuizOpen={isQuizOpen}
         isFullscreen={isFullscreen}
@@ -298,7 +316,7 @@ export function KarbonModule() {
 
       {activeView === 'karbon' ? (
         <KarbonHub onSelectTheme={handleSelectView} />
-      ) : activeView === 'atommodell-bindinger' ? (
+      ) : isReadySubtopic(activeView) ? (
         <>
           <main
             className={`flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 w-full ${
@@ -311,13 +329,11 @@ export function KarbonModule() {
               <div className="lg:col-span-12 min-h-0 h-full">
                 <FullscreenClosingSlide
                   mode={closingSlide}
-                  themeId="atommodell-bindinger"
-                  themeTitle={KARBON_THEMES['atommodell-bindinger'].title}
-                  themeSubtitle={
-                    KARBON_THEMES['atommodell-bindinger'].dropdownDescription
-                  }
+                  themeId={activeView}
+                  themeTitle={KARBON_THEMES[activeView].title}
+                  themeSubtitle={KARBON_THEMES[activeView].dropdownDescription}
                   accent="violet"
-                  steps={ATOM_BINDING_STEPS.map((step) => ({
+                  steps={activeSteps.map((step) => ({
                     stepNumber: step.stepNumber,
                     title: step.title,
                     shortLabel: step.shortLabel,
@@ -325,9 +341,9 @@ export function KarbonModule() {
                     badge: step.categoryLabel,
                   }))}
                   keyTerms={Array.from(
-                    new Set(ATOM_BINDING_STEPS.flatMap((step) => step.examples)),
+                    new Set(activeSteps.flatMap((step) => step.examples)),
                   )}
-                  reviewQuestions={ATOM_BINDING_CONTROL_QUESTIONS.slice(0, 3).map(
+                  reviewQuestions={activeControlQuestions.slice(0, 3).map(
                     (q) => ({
                       id: q.id,
                       question: q.question,
@@ -338,9 +354,9 @@ export function KarbonModule() {
                     }),
                   )}
                   reflectionPrompt={
-                    REFLECTION_PROMPTS['atommodell-bindinger'] ?? {
+                    REFLECTION_PROMPTS[activeView] ?? {
                       question:
-                        'Hvordan henger elektronene i det ytterste skallet sammen med egenskapene til stoffene vi møter i hverdagen?',
+                        'Hvordan henger karbonatomets 4 bindinger sammen med det enorme mangfoldet av stoffer i naturen?',
                     }
                   }
                   onJumpToStep={jumpToStep}
@@ -350,22 +366,40 @@ export function KarbonModule() {
             ) : (
               <>
                 <section
-                  aria-label="Interaktiv Atom- og Bindingslab"
+                  aria-label={
+                    activeView === 'karbonatomet'
+                      ? 'Interaktivt ekspanderende karbonatom-kart'
+                      : 'Interaktiv Atom- og Bindingslab'
+                  }
                   className="h-[46vh] min-h-[300px] sm:h-[52vh] lg:h-full lg:col-span-7"
                 >
-                  <AtomBindingExplorer
-                    currentStepIndex={currentStepIndex}
-                    onSelectStep={jumpToStep}
-                  />
+                  {activeView === 'karbonatomet' ? (
+                    <KarbonAtometExplorer
+                      steps={KARBON_ATOMET_STEPS}
+                      currentStepIndex={currentStepIndex}
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      onSelectStep={jumpToStep}
+                    />
+                  ) : (
+                    <AtomBindingExplorer
+                      currentStepIndex={currentStepIndex}
+                      onSelectStep={jumpToStep}
+                    />
+                  )}
                 </section>
 
                 <section
-                  aria-label="Fagkort for kjemiske bindinger"
+                  aria-label={
+                    activeView === 'karbonatomet'
+                      ? 'Fagkort for karbonatomet og mangfoldet'
+                      : 'Fagkort for kjemiske bindinger'
+                  }
                   className="lg:h-full lg:col-span-5 min-h-0"
                 >
                   <KarbonInfoPanel
                     node={activeStep}
-                    totalSteps={ATOM_BINDING_STEPS.length}
+                    totalSteps={activeSteps.length}
                     isFullscreen={isFullscreen}
                     onOpenLightbox={setLightboxNode}
                   />
@@ -375,7 +409,7 @@ export function KarbonModule() {
           </main>
 
           <KarbonStepDock
-            steps={ATOM_BINDING_STEPS}
+            steps={activeSteps}
             currentStepIndex={currentStepIndex}
             unlockedStepIndex={unlockedStepIndex}
             showAllSteps={showAllSteps}
@@ -468,12 +502,12 @@ export function KarbonModule() {
         )
       )}
 
-      {isQuizOpen && activeView === 'atommodell-bindinger' && (
+      {isQuizOpen && isReadySubtopic(activeView) && (
         <KarbonQuizModal
-          title="Kontrollspørsmål: Atommodell & kjemiske bindinger"
-          subchapterId="atommodell-bindinger"
-          controlQuestions={ATOM_BINDING_CONTROL_QUESTIONS}
-          mcqQuestions={ATOM_BINDING_MCQ_QUESTIONS}
+          title={`Kontrollspørsmål: ${KARBON_THEMES[activeView].title}`}
+          subchapterId={activeView}
+          controlQuestions={activeControlQuestions}
+          mcqQuestions={activeMcqQuestions}
           onClose={() => setIsQuizOpen(false)}
           onJumpToStep={jumpToStep}
         />

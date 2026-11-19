@@ -72,7 +72,7 @@ export const KARBON_THEME_LIST: KarbonThemeMeta[] = [
     cx: 760,
     cy: 205,
     r: 74,
-    ready: false,
+    ready: true,
   },
   {
     id: 'hydrokarboner',
