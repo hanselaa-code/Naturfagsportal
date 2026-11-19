@@ -22,6 +22,11 @@ import {
 } from './data/themes';
 import { UNIVERSE_CENTER_NODE } from './data/universeHubData';
 import { progressService } from '../../core/storage';
+import {
+  FullscreenClosingSlide,
+  type ClosingSlideMode,
+} from '../../components/FullscreenClosingSlide';
+import { REFLECTION_PROMPTS } from '../../data/reflectionPrompts';
 
 interface ThemeProgressState {
   currentStepIndex: number;
@@ -56,6 +61,9 @@ export function App() {
   const [lightboxNode, setLightboxNode] = useState<CosmicNodeData | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCinemaFallback, setIsCinemaFallback] = useState(false);
+  const [closingSlide, setClosingSlide] = useState<ClosingSlideMode | null>(
+    null,
+  );
 
   const isMindMap = activeView === 'universet';
   const activeTheme = THEMES[activeThemeId];
@@ -73,6 +81,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!isFullscreen) {
+      setClosingSlide(null);
+    }
+  }, [isFullscreen]);
+
+  useEffect(() => {
     const pageTitle = isMindMap
       ? UNIVERSE_CENTER_NODE.dropdownTitle
       : activeTheme.title;
@@ -85,6 +99,7 @@ export function App() {
       setActiveThemeId(nextView);
       progressService.markSubchapterCompleted('big-bang', nextView);
     }
+    setClosingSlide(null);
     setIsQuizOpen(false);
     setLightboxNode(null);
 
@@ -97,6 +112,7 @@ export function App() {
     (nextIdx: number) => {
       const mainIds = activeTheme.mainStepIds;
       const clamped = Math.max(0, Math.min(mainIds.length - 1, nextIdx));
+      setClosingSlide(null);
       setProgressByTheme((prev) => {
         const cur = prev[activeThemeId];
         return {
@@ -119,14 +135,27 @@ export function App() {
   const handleNext = useCallback(() => {
     if (isQuizOpen || isQrOpen) return;
 
+    if (isFullscreen && closingSlide === 'summary') {
+      setClosingSlide('questions');
+      return;
+    }
+    if (isFullscreen && closingSlide === 'questions') {
+      setIsQuizOpen(true);
+      return;
+    }
+
     if (currentStepIndex < activeTheme.mainStepIds.length - 1) {
       jumpToStep(currentStepIndex + 1);
+    } else if (isFullscreen) {
+      setClosingSlide('summary');
     } else {
       setIsQuizOpen(true);
     }
   }, [
     activeTheme.mainStepIds.length,
+    closingSlide,
     currentStepIndex,
+    isFullscreen,
     isQrOpen,
     isQuizOpen,
     jumpToStep,
@@ -141,15 +170,31 @@ export function App() {
       setIsQuizOpen(false);
       return;
     }
+    if (isFullscreen && closingSlide === 'questions') {
+      setClosingSlide('summary');
+      return;
+    }
+    if (isFullscreen && closingSlide === 'summary') {
+      setClosingSlide(null);
+      return;
+    }
     if (currentStepIndex > 0) {
       jumpToStep(currentStepIndex - 1);
     }
-  }, [currentStepIndex, isQrOpen, isQuizOpen, jumpToStep]);
+  }, [
+    closingSlide,
+    currentStepIndex,
+    isFullscreen,
+    isQrOpen,
+    isQuizOpen,
+    jumpToStep,
+  ]);
 
   const handleSelectNode = useCallback(
     (nodeId: string) => {
       const target = activeTheme.nodeMap[nodeId];
       if (!target) return;
+      setClosingSlide(null);
       setProgressByTheme((prev) => {
         const cur = prev[activeThemeId];
         return {
@@ -187,6 +232,7 @@ export function App() {
   const handleResetPresentation = useCallback(() => {
     setIsQuizOpen(false);
     setIsQrOpen(false);
+    setClosingSlide(null);
     setProgressByTheme((prev) => ({
       ...prev,
       [activeThemeId]: {
@@ -363,7 +409,7 @@ export function App() {
         </main>
       ) : (
         <>
-          {/* Main split classroom stage: Left/Top Interactive Timeline + Right Info Card */}
+          {/* Main split classroom stage: Left/Top Interactive Timeline + Right Info Card, or Fullscreen Closing Slide */}
           <main
             className={`flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 w-full mx-auto ${
               isFullscreen
@@ -371,71 +417,119 @@ export function App() {
                 : 'p-3 pb-24 sm:p-4 sm:pb-24 lg:px-6 lg:py-4 lg:pb-4 gap-3.5 sm:gap-4 max-w-[1920px]'
             }`}
           >
-            <section
-              aria-label={activeTheme.title}
-              className="h-[44vh] min-h-[290px] sm:h-[50vh] lg:h-full lg:col-span-7 xl:col-span-7"
-            >
-              {activeThemeId === 'big-bang' && (
-                <BigBangTimeline
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
+            {isFullscreen && closingSlide ? (
+              <div className="lg:col-span-12 min-h-0 h-full">
+                <FullscreenClosingSlide
+                  mode={closingSlide}
+                  themeId={activeThemeId}
+                  themeTitle={activeTheme.title}
+                  themeSubtitle={activeTheme.subtitle}
+                  accent="amber"
+                  steps={activeTheme.mainStepIds.map((id, idx) => {
+                    const n = activeTheme.nodeMap[id];
+                    return {
+                      stepNumber: idx + 1,
+                      title: n.title,
+                      shortLabel: n.shortLabel,
+                      summaryTitle: n.summaryTitle,
+                      badge: n.timeAfterBB,
+                    };
+                  })}
+                  keyTerms={Array.from(
+                    new Set(
+                      activeTheme.mainStepIds.flatMap(
+                        (id) => activeTheme.nodeMap[id]?.examples ?? [],
+                      ),
+                    ),
+                  )}
+                  reviewQuestions={activeTheme.controlQuestions
+                    .slice(0, 3)
+                    .map((q) => ({
+                      id: q.id,
+                      question: q.question,
+                      hint: q.contextHint,
+                      answerPoints: q.points.map(
+                        (p) => `${p.heading}: ${p.detail}`,
+                      ),
+                    }))}
+                  reflectionPrompt={
+                    REFLECTION_PROMPTS[activeThemeId] ?? {
+                      question: `Hva synes du er det mest fascinerende ved ${activeTheme.title.toLowerCase()}, og hvordan påvirker det vår forståelse av universet?`,
+                    }
+                  }
+                  onJumpToStep={jumpToStep}
+                  onOpenQuiz={() => setIsQuizOpen(true)}
                 />
-              )}
-              {activeThemeId === 'stjerner' && (
-                <StarsBranchingTimeline
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'grunnstoffer' && (
-                <ElementsExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'straling' && (
-                <RadiationExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'galakser' && (
-                <GalaxiesExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'romtid' && (
-                <SpacetimeExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-            </section>
+              </div>
+            ) : (
+              <>
+                <section
+                  aria-label={activeTheme.title}
+                  className="h-[44vh] min-h-[290px] sm:h-[50vh] lg:h-full lg:col-span-7 xl:col-span-7"
+                >
+                  {activeThemeId === 'big-bang' && (
+                    <BigBangTimeline
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'stjerner' && (
+                    <StarsBranchingTimeline
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'grunnstoffer' && (
+                    <ElementsExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'straling' && (
+                    <RadiationExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'galakser' && (
+                    <GalaxiesExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'romtid' && (
+                    <SpacetimeExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                </section>
 
-            <section
-              aria-label="Fagkort for valgt steg"
-              className="lg:h-full lg:col-span-5 xl:col-span-5 min-h-0"
-            >
-              <InfoPanel
-                activeTheme={activeTheme}
-                node={activeNode}
-                isFullscreen={isFullscreen}
-                onOpenLightbox={(node) => setLightboxNode(node)}
-              />
-            </section>
+                <section
+                  aria-label="Fagkort for valgt steg"
+                  className="lg:h-full lg:col-span-5 xl:col-span-5 min-h-0"
+                >
+                  <InfoPanel
+                    activeTheme={activeTheme}
+                    node={activeNode}
+                    isFullscreen={isFullscreen}
+                    onOpenLightbox={(node) => setLightboxNode(node)}
+                  />
+                </section>
+              </>
+            )}
           </main>
 
           <TimelineDock
@@ -444,9 +538,11 @@ export function App() {
             unlockedStepIndex={unlockedStepIndex}
             showAllSteps={showAllSteps}
             isFullscreen={isFullscreen}
+            closingSlide={closingSlide}
             onPrev={handlePrev}
             onNext={handleNext}
             onJumpToStep={jumpToStep}
+            onSelectClosingSlide={setClosingSlide}
           />
 
           {isQuizOpen && (

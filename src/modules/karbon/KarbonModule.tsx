@@ -1,6 +1,11 @@
 import { ArrowLeft, ArrowRight, Construction, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import {
+  FullscreenClosingSlide,
+  type ClosingSlideMode,
+} from '../../components/FullscreenClosingSlide';
 import { progressService } from '../../core/storage';
+import { REFLECTION_PROMPTS } from '../../data/reflectionPrompts';
 import { AtomBindingExplorer } from './components/AtomBindingExplorer';
 import { KarbonHub } from './components/KarbonHub';
 import { KarbonInfoPanel } from './components/KarbonInfoPanel';
@@ -26,6 +31,9 @@ export function KarbonModule() {
   const [showAllSteps, setShowAllSteps] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [closingSlide, setClosingSlide] = useState<ClosingSlideMode | null>(
+    null,
+  );
   const [lightboxNode, setLightboxNode] = useState<KarbonStepNode | null>(null);
 
   useEffect(() => {
@@ -44,6 +52,7 @@ export function KarbonModule() {
     setActiveView(nextView);
     setCurrentStepIndex(0);
     setUnlockedStepIndex(0);
+    setClosingSlide(null);
     setIsQuizOpen(false);
     setLightboxNode(null);
     if (nextView === 'atommodell-bindinger') {
@@ -59,28 +68,47 @@ export function KarbonModule() {
       0,
       Math.min(ATOM_BINDING_STEPS.length - 1, nextIdx),
     );
+    setClosingSlide(null);
     setCurrentStepIndex(clamped);
     setUnlockedStepIndex((prev) => Math.max(prev, clamped));
   }, []);
 
   const handleNext = useCallback(() => {
     if (isQuizOpen) return;
+    if (isFullscreen && closingSlide === 'summary') {
+      setClosingSlide('questions');
+      return;
+    }
+    if (isFullscreen && closingSlide === 'questions') {
+      setIsQuizOpen(true);
+      return;
+    }
     if (currentStepIndex < ATOM_BINDING_STEPS.length - 1) {
       jumpToStep(currentStepIndex + 1);
+    } else if (isFullscreen) {
+      setClosingSlide('summary');
     } else {
       setIsQuizOpen(true);
     }
-  }, [currentStepIndex, isQuizOpen, jumpToStep]);
+  }, [closingSlide, currentStepIndex, isFullscreen, isQuizOpen, jumpToStep]);
 
   const handlePrev = useCallback(() => {
     if (isQuizOpen) {
       setIsQuizOpen(false);
       return;
     }
+    if (isFullscreen && closingSlide === 'questions') {
+      setClosingSlide('summary');
+      return;
+    }
+    if (isFullscreen && closingSlide === 'summary') {
+      setClosingSlide(null);
+      return;
+    }
     if (currentStepIndex > 0) {
       jumpToStep(currentStepIndex - 1);
     }
-  }, [currentStepIndex, isQuizOpen, jumpToStep]);
+  }, [closingSlide, currentStepIndex, isFullscreen, isQuizOpen, jumpToStep]);
 
   const toggleFullscreen = useCallback(async () => {
     try {
@@ -99,6 +127,12 @@ export function KarbonModule() {
     document.addEventListener('fullscreenchange', onFs);
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
+
+  useEffect(() => {
+    if (!isFullscreen) {
+      setClosingSlide(null);
+    }
+  }, [isFullscreen]);
 
   // PowerPoint keyboard navigation for ready subtopics
   useEffect(() => {
@@ -125,13 +159,23 @@ export function KarbonModule() {
         }
       }
 
-      if ((e.key === 'q' || e.key === 'Q') && !e.ctrlKey && !e.metaKey) {
+      if (
+        (e.key === 'q' || e.key === 'Q') &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
         e.preventDefault();
         setIsQuizOpen((prev) => !prev);
         return;
       }
 
-      if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) {
+      if (
+        (e.key === 'f' || e.key === 'F') &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
         e.preventDefault();
         void toggleFullscreen();
         return;
@@ -198,27 +242,71 @@ export function KarbonModule() {
                 : 'p-3 pb-24 sm:p-4 sm:pb-24 lg:px-6 lg:py-4 lg:pb-4 gap-3.5 sm:gap-4 max-w-[1920px] mx-auto'
             }`}
           >
-            <section
-              aria-label="Interaktiv Atom- og Bindingslab"
-              className="h-[46vh] min-h-[300px] sm:h-[52vh] lg:h-full lg:col-span-7"
-            >
-              <AtomBindingExplorer
-                currentStepIndex={currentStepIndex}
-                onSelectStep={jumpToStep}
-              />
-            </section>
+            {isFullscreen && closingSlide ? (
+              <div className="lg:col-span-12 min-h-0 h-full">
+                <FullscreenClosingSlide
+                  mode={closingSlide}
+                  themeId="atommodell-bindinger"
+                  themeTitle={KARBON_THEMES['atommodell-bindinger'].title}
+                  themeSubtitle={
+                    KARBON_THEMES['atommodell-bindinger'].dropdownDescription
+                  }
+                  accent="violet"
+                  steps={ATOM_BINDING_STEPS.map((step) => ({
+                    stepNumber: step.stepNumber,
+                    title: step.title,
+                    shortLabel: step.shortLabel,
+                    summaryTitle: step.summaryTitle,
+                    badge: step.categoryLabel,
+                  }))}
+                  keyTerms={Array.from(
+                    new Set(ATOM_BINDING_STEPS.flatMap((step) => step.examples)),
+                  )}
+                  reviewQuestions={ATOM_BINDING_CONTROL_QUESTIONS.slice(0, 3).map(
+                    (q) => ({
+                      id: q.id,
+                      question: q.question,
+                      hint: q.contextHint,
+                      answerPoints: q.points.map(
+                        (p) => `${p.heading}: ${p.detail}`,
+                      ),
+                    }),
+                  )}
+                  reflectionPrompt={
+                    REFLECTION_PROMPTS['atommodell-bindinger'] ?? {
+                      question:
+                        'Hvordan henger elektronene i det ytterste skallet sammen med egenskapene til stoffene vi møter i hverdagen?',
+                    }
+                  }
+                  onJumpToStep={jumpToStep}
+                  onOpenQuiz={() => setIsQuizOpen(true)}
+                />
+              </div>
+            ) : (
+              <>
+                <section
+                  aria-label="Interaktiv Atom- og Bindingslab"
+                  className="h-[46vh] min-h-[300px] sm:h-[52vh] lg:h-full lg:col-span-7"
+                >
+                  <AtomBindingExplorer
+                    currentStepIndex={currentStepIndex}
+                    onSelectStep={jumpToStep}
+                  />
+                </section>
 
-            <section
-              aria-label="Fagkort for kjemiske bindinger"
-              className="lg:h-full lg:col-span-5 min-h-0"
-            >
-              <KarbonInfoPanel
-                node={activeStep}
-                totalSteps={ATOM_BINDING_STEPS.length}
-                isFullscreen={isFullscreen}
-                onOpenLightbox={setLightboxNode}
-              />
-            </section>
+                <section
+                  aria-label="Fagkort for kjemiske bindinger"
+                  className="lg:h-full lg:col-span-5 min-h-0"
+                >
+                  <KarbonInfoPanel
+                    node={activeStep}
+                    totalSteps={ATOM_BINDING_STEPS.length}
+                    isFullscreen={isFullscreen}
+                    onOpenLightbox={setLightboxNode}
+                  />
+                </section>
+              </>
+            )}
           </main>
 
           <KarbonStepDock
@@ -227,9 +315,11 @@ export function KarbonModule() {
             unlockedStepIndex={unlockedStepIndex}
             showAllSteps={showAllSteps}
             isFullscreen={isFullscreen}
+            closingSlide={closingSlide}
             onPrev={handlePrev}
             onNext={handleNext}
             onJumpToStep={jumpToStep}
+            onSelectClosingSlide={setClosingSlide}
           />
         </>
       ) : (

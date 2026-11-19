@@ -23,6 +23,11 @@ import {
   type ThemeId,
 } from './data/themes';
 import { progressService } from '../../core/storage';
+import {
+  FullscreenClosingSlide,
+  type ClosingSlideMode,
+} from '../../components/FullscreenClosingSlide';
+import { REFLECTION_PROMPTS } from '../../data/reflectionPrompts';
 import type { TreeNodeData } from './data/treeOfLifeData';
 
 interface ThemeProgressState {
@@ -58,6 +63,9 @@ export function App() {
   const [lightboxNode, setLightboxNode] = useState<TreeNodeData | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCinemaFallback, setIsCinemaFallback] = useState(false);
+  const [closingSlide, setClosingSlide] = useState<ClosingSlideMode | null>(
+    null,
+  );
 
   const isMindMap = activeView === 'biologi';
   const activeTheme = THEMES[activeThemeId];
@@ -75,6 +83,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!isFullscreen) {
+      setClosingSlide(null);
+    }
+  }, [isFullscreen]);
+
+  useEffect(() => {
     const pageTitle = isMindMap
       ? BIOLOGY_CENTER_NODE.dropdownTitle
       : activeTheme.title;
@@ -87,6 +101,7 @@ export function App() {
       setActiveThemeId(nextView);
       progressService.markSubchapterCompleted('livets-tre', nextView);
     }
+    setClosingSlide(null);
     setIsQuizOpen(false);
     setLightboxNode(null);
     if (window.innerWidth < 1024) {
@@ -105,6 +120,7 @@ export function App() {
     (nextIdx: number) => {
       const mainIds = activeTheme.mainStepIds;
       const clamped = Math.max(0, Math.min(mainIds.length - 1, nextIdx));
+      setClosingSlide(null);
       setProgressByTheme((prev) => {
         const cur = prev[activeThemeId];
         return {
@@ -127,14 +143,27 @@ export function App() {
   const handleNext = useCallback(() => {
     if (isQuizOpen || isQrOpen) return;
 
+    if (isFullscreen && closingSlide === 'summary') {
+      setClosingSlide('questions');
+      return;
+    }
+    if (isFullscreen && closingSlide === 'questions') {
+      setIsQuizOpen(true);
+      return;
+    }
+
     if (currentStepIndex < activeTheme.mainStepIds.length - 1) {
       jumpToStep(currentStepIndex + 1);
+    } else if (isFullscreen) {
+      setClosingSlide('summary');
     } else {
       setIsQuizOpen(true);
     }
   }, [
     activeTheme.mainStepIds.length,
+    closingSlide,
     currentStepIndex,
+    isFullscreen,
     isQrOpen,
     isQuizOpen,
     jumpToStep,
@@ -149,15 +178,31 @@ export function App() {
       setIsQuizOpen(false);
       return;
     }
+    if (isFullscreen && closingSlide === 'questions') {
+      setClosingSlide('summary');
+      return;
+    }
+    if (isFullscreen && closingSlide === 'summary') {
+      setClosingSlide(null);
+      return;
+    }
     if (currentStepIndex > 0) {
       jumpToStep(currentStepIndex - 1);
     }
-  }, [currentStepIndex, isQrOpen, isQuizOpen, jumpToStep]);
+  }, [
+    closingSlide,
+    currentStepIndex,
+    isFullscreen,
+    isQrOpen,
+    isQuizOpen,
+    jumpToStep,
+  ]);
 
   const handleSelectNode = useCallback(
     (nodeId: string) => {
       const target = activeTheme.nodeMap[nodeId];
       if (!target) return;
+      setClosingSlide(null);
       setProgressByTheme((prev) => {
         const cur = prev[activeThemeId];
         return {
@@ -192,6 +237,7 @@ export function App() {
   const handleResetPresentation = useCallback(() => {
     setIsQuizOpen(false);
     setIsQrOpen(false);
+    setClosingSlide(null);
     setProgressByTheme((prev) => ({
       ...prev,
       [activeThemeId]: {
@@ -282,6 +328,8 @@ export function App() {
         }
       }
 
+      if (isMindMap) return;
+
       if (e.key === 'q' || e.key === 'Q') {
         if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
@@ -309,6 +357,7 @@ export function App() {
     handleNext,
     handlePrev,
     isCinemaFallback,
+    isMindMap,
     isQrOpen,
     isQuizOpen,
     lightboxNode,
@@ -352,7 +401,7 @@ export function App() {
         <BiologyMindMap onSelectTheme={(id) => handleSelectView(id)} />
       ) : (
         <>
-          {/* Main split classroom stage: Left/Top Interactive Canvas + Right Info Card */}
+          {/* Main split classroom stage: Left/Top Interactive Canvas + Right Info Card, or Fullscreen Closing Slide */}
           <main
             className={`flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 w-full mx-auto ${
               isFullscreen
@@ -360,90 +409,138 @@ export function App() {
                 : 'p-3 pb-24 sm:p-4 sm:pb-24 lg:px-6 lg:py-4 lg:pb-4 gap-3.5 sm:gap-4 max-w-[1920px]'
             }`}
           >
-            <section
-              aria-label={activeTheme.title}
-              className="h-[42vh] min-h-[280px] sm:h-[50vh] lg:h-full lg:col-span-7 xl:col-span-7"
-            >
-              {activeThemeId === 'livets-tre' && (
-                <PhylogeneticTree
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
+            {isFullscreen && closingSlide ? (
+              <div className="lg:col-span-12 min-h-0 h-full">
+                <FullscreenClosingSlide
+                  mode={closingSlide}
+                  themeId={activeThemeId}
+                  themeTitle={activeTheme.title}
+                  themeSubtitle={activeTheme.subtitle}
+                  accent="emerald"
+                  steps={activeTheme.mainStepIds.map((id, idx) => {
+                    const n = activeTheme.nodeMap[id];
+                    return {
+                      stepNumber: idx + 1,
+                      title: n.title,
+                      shortLabel: n.shortLabel,
+                      summaryTitle: n.summaryTitle,
+                      badge: n.timeMa,
+                    };
+                  })}
+                  keyTerms={Array.from(
+                    new Set(
+                      activeTheme.mainStepIds.flatMap(
+                        (id) => activeTheme.nodeMap[id]?.examples ?? [],
+                      ),
+                    ),
+                  )}
+                  reviewQuestions={activeTheme.controlQuestions
+                    .slice(0, 3)
+                    .map((q) => ({
+                      id: q.id,
+                      question: q.question,
+                      hint: q.contextHint,
+                      answerPoints: q.points.map(
+                        (p) => `${p.heading}: ${p.detail}`,
+                      ),
+                    }))}
+                  reflectionPrompt={
+                    REFLECTION_PROMPTS[activeThemeId] ?? {
+                      question: `Hva synes du er det mest overraskende eller viktigste ved ${activeTheme.title.toLowerCase()}, og hvordan henger det sammen med livet rundt oss i dag?`,
+                    }
+                  }
+                  onJumpToStep={jumpToStep}
+                  onOpenQuiz={() => setIsQuizOpen(true)}
                 />
-              )}
-              {activeThemeId === 'kroppens-evolusjon' && (
-                <HumanBodyExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'dyrecellen' && (
-                <AnimalCellExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'plantecellen' && (
-                <PlantCellExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'dna-replikasjon' && (
-                <DnaReplicationExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'proteinsyntesen' && (
-                <ProteinSynthesisTimeline
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'evolusjon' && (
-                <EvolutionExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-              {activeThemeId === 'genetikk' && (
-                <GeneticsExplorer
-                  unlockedStepIndex={unlockedStepIndex}
-                  showAllSteps={showAllSteps}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={handleSelectNode}
-                />
-              )}
-            </section>
+              </div>
+            ) : (
+              <>
+                <section
+                  aria-label={activeTheme.title}
+                  className="h-[42vh] min-h-[280px] sm:h-[50vh] lg:h-full lg:col-span-7 xl:col-span-7"
+                >
+                  {activeThemeId === 'livets-tre' && (
+                    <PhylogeneticTree
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'kroppens-evolusjon' && (
+                    <HumanBodyExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'dyrecellen' && (
+                    <AnimalCellExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'plantecellen' && (
+                    <PlantCellExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'dna-replikasjon' && (
+                    <DnaReplicationExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'proteinsyntesen' && (
+                    <ProteinSynthesisTimeline
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'evolusjon' && (
+                    <EvolutionExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                  {activeThemeId === 'genetikk' && (
+                    <GeneticsExplorer
+                      unlockedStepIndex={unlockedStepIndex}
+                      showAllSteps={showAllSteps}
+                      selectedNodeId={selectedNodeId}
+                      onSelectNode={handleSelectNode}
+                    />
+                  )}
+                </section>
 
-            <section
-              aria-label="Fagkort for valgt tema"
-              className="lg:h-full lg:col-span-5 xl:col-span-5 min-h-0"
-            >
-              <InfoPanel
-                activeTheme={activeTheme}
-                node={activeNode}
-                currentMainStepIndex={currentStepIndex}
-                isFullscreen={isFullscreen}
-                onSelectNode={handleSelectNode}
-                onOpenLightbox={(node) => setLightboxNode(node)}
-                onSwitchTheme={handleSelectTheme}
-              />
-            </section>
+                <section
+                  aria-label="Fagkort for valgt tema"
+                  className="lg:h-full lg:col-span-5 xl:col-span-5 min-h-0"
+                >
+                  <InfoPanel
+                    activeTheme={activeTheme}
+                    node={activeNode}
+                    currentMainStepIndex={currentStepIndex}
+                    isFullscreen={isFullscreen}
+                    onSelectNode={handleSelectNode}
+                    onOpenLightbox={(node) => setLightboxNode(node)}
+                    onSwitchTheme={handleSelectTheme}
+                  />
+                </section>
+              </>
+            )}
           </main>
 
           <TimelineDock
@@ -452,9 +549,11 @@ export function App() {
             unlockedStepIndex={unlockedStepIndex}
             showAllSteps={showAllSteps}
             isFullscreen={isFullscreen}
+            closingSlide={closingSlide}
             onPrev={handlePrev}
             onNext={handleNext}
             onJumpToStep={jumpToStep}
+            onSelectClosingSlide={setClosingSlide}
           />
         </>
       )}
