@@ -211,3 +211,18 @@ export const KARBON_DASHED_ARCS: {
     d: 'M 378 158 Q 415 130 468 118',
   },
 ];
+
+export function parseKarbonView(value?: string): KarbonAppView {
+  if (!value) return 'karbon';
+  const raw = value.replace(/^#/, '').trim();
+  let clean = raw.toLowerCase();
+  try {
+    clean = decodeURIComponent(raw).toLowerCase();
+  } catch {
+    // Keep raw lowercased string on malformed URI encoding
+  }
+  if (Object.prototype.hasOwnProperty.call(KARBON_THEMES, clean)) {
+    return clean as KarbonThemeId;
+  }
+  return 'karbon';
+}

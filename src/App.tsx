@@ -52,7 +52,27 @@ export function App() {
           }
         />
         <Route
+          path="/big-bang/:tema"
+          element={
+            <Suspense fallback={<ModuleLoadingFallback title="Big Bang" />}>
+              <ModuleShell>
+                <BigBangModule />
+              </ModuleShell>
+            </Suspense>
+          }
+        />
+        <Route
           path="/karbon"
+          element={
+            <Suspense fallback={<ModuleLoadingFallback title="Karbon" />}>
+              <ModuleShell>
+                <KarbonModule />
+              </ModuleShell>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/karbon/:tema"
           element={
             <Suspense fallback={<ModuleLoadingFallback title="Karbon" />}>
               <ModuleShell>
@@ -72,7 +92,29 @@ export function App() {
           }
         />
         <Route
+          path="/livets-tre/:tema"
+          element={
+            <Suspense fallback={<ModuleLoadingFallback title="Livets tre" />}>
+              <ModuleShell>
+                <LivetsTreModule />
+              </ModuleShell>
+            </Suspense>
+          }
+        />
+        <Route
           path="/helse-ernering"
+          element={
+            <Suspense
+              fallback={<ModuleLoadingFallback title="Helse og Ernæring" />}
+            >
+              <ModuleShell>
+                <HelseErneringModule />
+              </ModuleShell>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/helse-ernering/:tema"
           element={
             <Suspense
               fallback={<ModuleLoadingFallback title="Helse og Ernæring" />}

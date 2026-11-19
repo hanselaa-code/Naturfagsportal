@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { DigestiveBodyExplorer } from './components/DigestiveBodyExplorer';
 import { HealthMindMap } from './components/HealthMindMap';
 import { ImageLightbox } from './components/ImageLightbox';
 import { InfoPanel } from './components/InfoPanel';
 import { ModuleExplorer } from './components/ModuleExplorer';
-import { QrShareModal } from './components/QrShareModal';
 import { QuizModal } from './components/QuizModal';
 import { TimelineDock } from './components/TimelineDock';
 import { TopBar } from './components/TopBar';
 import { HEALTH_CENTER_NODE } from './data/healthHubData';
 import {
+  parseViewFromHash,
   THEME_LIST,
   THEMES,
 } from './data/themes';
@@ -19,6 +20,7 @@ import {
   FullscreenClosingSlide,
   type ClosingSlideMode,
 } from '../../components/FullscreenClosingSlide';
+import { QrShareModal } from '../../components/QrShareModal';
 import { REFLECTION_PROMPTS } from '../../data/reflectionPrompts';
 
 interface ThemeProgressState {
@@ -41,8 +43,14 @@ function createInitialProgress(): Record<ThemeId, ThemeProgressState> {
 }
 
 export function App() {
-  const [activeView, setActiveView] = useState<AppView>('oversikt');
-  const [activeThemeId, setActiveThemeId] = useState<ThemeId>('naeringsstoffer');
+  const { tema } = useParams<{ tema?: string }>();
+  const navigate = useNavigate();
+  const initialView: AppView = tema ? parseViewFromHash(tema) : 'oversikt';
+
+  const [activeView, setActiveView] = useState<AppView>(initialView);
+  const [activeThemeId, setActiveThemeId] = useState<ThemeId>(
+    initialView === 'oversikt' ? 'naeringsstoffer' : initialView,
+  );
   const [progressByTheme, setProgressByTheme] = useState<
     Record<ThemeId, ThemeProgressState>
   >(createInitialProgress);
@@ -65,6 +73,18 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const nextView: AppView = tema ? parseViewFromHash(tema) : 'oversikt';
+    setActiveView(nextView);
+    if (nextView !== 'oversikt') {
+      setActiveThemeId(nextView);
+      progressService.markSubchapterCompleted('helse-ernering', nextView);
+    }
+    setClosingSlide(null);
+    setIsQuizOpen(false);
+    setLightboxNode(null);
+  }, [tema]);
+
+  useEffect(() => {
     const pageTitle = isMindMap
       ? HEALTH_CENTER_NODE.dropdownTitle
       : activeTheme.title;
@@ -85,16 +105,24 @@ export function App() {
     }
   }, [isFullscreen]);
 
-  const handleSelectView = useCallback((nextView: AppView) => {
-    setActiveView(nextView);
-    if (nextView !== 'oversikt') {
-      setActiveThemeId(nextView);
-      progressService.markSubchapterCompleted('helse-ernering', nextView);
-    }
-    setClosingSlide(null);
-    setIsQuizOpen(false);
-    setLightboxNode(null);
-  }, []);
+  const handleSelectView = useCallback(
+    (nextView: AppView) => {
+      setActiveView(nextView);
+      if (nextView !== 'oversikt') {
+        setActiveThemeId(nextView);
+        progressService.markSubchapterCompleted('helse-ernering', nextView);
+      }
+      setClosingSlide(null);
+      setIsQuizOpen(false);
+      setLightboxNode(null);
+      navigate(
+        nextView === 'oversikt'
+          ? '/helse-ernering'
+          : `/helse-ernering/${nextView}`,
+      );
+    },
+    [navigate],
+  );
 
   const jumpToStep = useCallback(
     (nextIdx: number) => {
@@ -398,7 +426,20 @@ export function App() {
         onJumpToStep={jumpToStep}
       />
 
-      <QrShareModal isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} />
+      <QrShareModal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        routePath={
+          activeView === 'oversikt'
+            ? '/helse-ernering'
+            : `/helse-ernering/${activeView}`
+        }
+        badgeLabel={activeView === 'oversikt' ? 'Temastartside' : 'Undertema'}
+        title={
+          activeView === 'oversikt' ? 'Helse og ernæring' : activeTheme.title
+        }
+        accent="amber"
+      />
 
       <ImageLightbox
         node={lightboxNode}

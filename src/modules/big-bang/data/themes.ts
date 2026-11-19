@@ -313,7 +313,13 @@ export const THEME_LIST: ThemeConfig[] = [
 ];
 
 export function parseViewFromHash(hash: string): AppView {
-  const clean = decodeURIComponent(hash.replace(/^#/, '').trim().toLowerCase());
+  const raw = hash.replace(/^#/, '').trim();
+  let clean = raw.toLowerCase();
+  try {
+    clean = decodeURIComponent(raw).toLowerCase();
+  } catch {
+    // Keep raw lowercased string on malformed URI encoding
+  }
   if (clean === 'big-bang' || clean === 'tidslinje') {
     return 'big-bang';
   }

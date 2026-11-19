@@ -13,6 +13,7 @@ import {
   Maximize,
   Minimize,
   Network,
+  QrCode,
   Sparkles,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -55,6 +56,7 @@ interface KarbonTopBarProps {
   onSelectView: (view: KarbonAppView) => void;
   onToggleShowAll: () => void;
   onToggleQuiz: () => void;
+  onOpenQrModal: () => void;
   onToggleFullscreen: () => void;
 }
 
@@ -68,6 +70,7 @@ export function KarbonTopBar({
   onSelectView,
   onToggleShowAll,
   onToggleQuiz,
+  onOpenQrModal,
   onToggleFullscreen,
 }: KarbonTopBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -345,6 +348,20 @@ export function KarbonTopBar({
             <span>Tilbake til oversikt</span>
           </button>
         )}
+
+        <button
+          id="btn-karbon-qr"
+          type="button"
+          onClick={onOpenQrModal}
+          title="Vis QR-kode for elever (K)"
+          className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 border border-violet-400/40 text-xs font-bold text-violet-200 transition-colors cursor-pointer"
+        >
+          <QrCode className="w-4 h-4 text-violet-300" />
+          <span className="hidden sm:inline">QR-kode</span>
+          <kbd className="hidden md:inline-block px-1.5 py-0.5 text-[10px] rounded bg-black/25 font-mono">
+            K
+          </kbd>
+        </button>
       </div>
     </header>
   );

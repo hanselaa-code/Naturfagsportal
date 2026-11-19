@@ -1,11 +1,11 @@
 import { Minimize } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { BigBangTimeline } from './components/BigBangTimeline';
 import { ElementsExplorer } from './components/ElementsExplorer';
 import { GalaxiesExplorer } from './components/GalaxiesExplorer';
 import { ImageLightbox } from './components/ImageLightbox';
 import { InfoPanel } from './components/InfoPanel';
-import { QrShareModal } from './components/QrShareModal';
 import { QuizModal } from './components/QuizModal';
 import { RadiationExplorer } from './components/RadiationExplorer';
 import { SpacetimeExplorer } from './components/SpacetimeExplorer';
@@ -15,6 +15,7 @@ import { TopBar } from './components/TopBar';
 import { UniverseMindMap } from './components/UniverseMindMap';
 import type { CosmicNodeData } from './data/bigBangData';
 import {
+  parseViewFromHash,
   THEME_LIST,
   THEMES,
   type AppView,
@@ -26,6 +27,7 @@ import {
   FullscreenClosingSlide,
   type ClosingSlideMode,
 } from '../../components/FullscreenClosingSlide';
+import { QrShareModal } from '../../components/QrShareModal';
 import { REFLECTION_PROMPTS } from '../../data/reflectionPrompts';
 
 interface ThemeProgressState {
@@ -50,8 +52,14 @@ function createInitialProgress(): Record<ThemeId, ThemeProgressState> {
 }
 
 export function App() {
-  const [activeView, setActiveView] = useState<AppView>('universet');
-  const [activeThemeId, setActiveThemeId] = useState<ThemeId>('big-bang');
+  const { tema } = useParams<{ tema?: string }>();
+  const navigate = useNavigate();
+  const initialView: AppView = tema ? parseViewFromHash(tema) : 'universet';
+
+  const [activeView, setActiveView] = useState<AppView>(initialView);
+  const [activeThemeId, setActiveThemeId] = useState<ThemeId>(
+    initialView === 'universet' ? 'big-bang' : initialView,
+  );
   const [progressByTheme, setProgressByTheme] = useState<
     Record<ThemeId, ThemeProgressState>
   >(createInitialProgress);
@@ -81,6 +89,18 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const nextView: AppView = tema ? parseViewFromHash(tema) : 'universet';
+    setActiveView(nextView);
+    if (nextView !== 'universet') {
+      setActiveThemeId(nextView);
+      progressService.markSubchapterCompleted('big-bang', nextView);
+    }
+    setClosingSlide(null);
+    setIsQuizOpen(false);
+    setLightboxNode(null);
+  }, [tema]);
+
+  useEffect(() => {
     if (!isFullscreen) {
       setClosingSlide(null);
     }
@@ -93,20 +113,26 @@ export function App() {
     document.title = `${pageTitle} | Naturfag Vg1`;
   }, [activeTheme.title, isMindMap]);
 
-  const handleSelectView = useCallback((nextView: AppView) => {
-    setActiveView(nextView);
-    if (nextView !== 'universet') {
-      setActiveThemeId(nextView);
-      progressService.markSubchapterCompleted('big-bang', nextView);
-    }
-    setClosingSlide(null);
-    setIsQuizOpen(false);
-    setLightboxNode(null);
+  const handleSelectView = useCallback(
+    (nextView: AppView) => {
+      setActiveView(nextView);
+      if (nextView !== 'universet') {
+        setActiveThemeId(nextView);
+        progressService.markSubchapterCompleted('big-bang', nextView);
+      }
+      setClosingSlide(null);
+      setIsQuizOpen(false);
+      setLightboxNode(null);
+      navigate(
+        nextView === 'universet' ? '/big-bang' : `/big-bang/${nextView}`,
+      );
 
-    if (window.innerWidth < 1024) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, []);
+      if (window.innerWidth < 1024) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    [navigate],
+  );
 
   const jumpToStep = useCallback(
     (nextIdx: number) => {
@@ -562,10 +588,18 @@ export function App() {
       )}
 
       <QrShareModal
-        activeView={activeView}
-        activeTheme={activeTheme}
         isOpen={isQrOpen}
         onClose={() => setIsQrOpen(false)}
+        routePath={
+          activeView === 'universet' ? '/big-bang' : `/big-bang/${activeView}`
+        }
+        badgeLabel={activeView === 'universet' ? 'Temastartside' : 'Undertema'}
+        title={
+          activeView === 'universet'
+            ? 'Universet & Big Bang'
+            : activeTheme.title
+        }
+        accent="amber"
       />
     </div>
   );

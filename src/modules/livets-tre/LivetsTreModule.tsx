@@ -1,5 +1,6 @@
 import { Minimize } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AnimalCellExplorer } from './components/AnimalCellExplorer';
 import { BiologyMindMap } from './components/BiologyMindMap';
 import { DnaReplicationExplorer } from './components/DnaReplicationExplorer';
@@ -11,12 +12,12 @@ import { InfoPanel } from './components/InfoPanel';
 import { PhylogeneticTree } from './components/PhylogeneticTree';
 import { PlantCellExplorer } from './components/PlantCellExplorer';
 import { ProteinSynthesisTimeline } from './components/ProteinSynthesisTimeline';
-import { QrShareModal } from './components/QrShareModal';
 import { QuizModal } from './components/QuizModal';
 import { TimelineDock } from './components/TimelineDock';
 import { TopBar } from './components/TopBar';
 import { BIOLOGY_CENTER_NODE } from './data/biologyHubData';
 import {
+  parseViewFromHash,
   THEME_LIST,
   THEMES,
   type AppView,
@@ -27,6 +28,7 @@ import {
   FullscreenClosingSlide,
   type ClosingSlideMode,
 } from '../../components/FullscreenClosingSlide';
+import { QrShareModal } from '../../components/QrShareModal';
 import { REFLECTION_PROMPTS } from '../../data/reflectionPrompts';
 import type { TreeNodeData } from './data/treeOfLifeData';
 
@@ -52,8 +54,14 @@ function createInitialProgress(): Record<ThemeId, ThemeProgressState> {
 }
 
 export function App() {
-  const [activeView, setActiveView] = useState<AppView>('biologi');
-  const [activeThemeId, setActiveThemeId] = useState<ThemeId>('dyrecellen');
+  const { tema } = useParams<{ tema?: string }>();
+  const navigate = useNavigate();
+  const initialView: AppView = tema ? parseViewFromHash(tema) : 'biologi';
+
+  const [activeView, setActiveView] = useState<AppView>(initialView);
+  const [activeThemeId, setActiveThemeId] = useState<ThemeId>(
+    initialView === 'biologi' ? 'dyrecellen' : initialView,
+  );
   const [progressByTheme, setProgressByTheme] = useState<
     Record<ThemeId, ThemeProgressState>
   >(createInitialProgress);
@@ -83,6 +91,18 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const nextView: AppView = tema ? parseViewFromHash(tema) : 'biologi';
+    setActiveView(nextView);
+    if (nextView !== 'biologi') {
+      setActiveThemeId(nextView);
+      progressService.markSubchapterCompleted('livets-tre', nextView);
+    }
+    setClosingSlide(null);
+    setIsQuizOpen(false);
+    setLightboxNode(null);
+  }, [tema]);
+
+  useEffect(() => {
     if (!isFullscreen) {
       setClosingSlide(null);
     }
@@ -95,19 +115,25 @@ export function App() {
     document.title = `${pageTitle} | Naturfag Vg1`;
   }, [activeTheme.title, isMindMap]);
 
-  const handleSelectView = useCallback((nextView: AppView) => {
-    setActiveView(nextView);
-    if (nextView !== 'biologi') {
-      setActiveThemeId(nextView);
-      progressService.markSubchapterCompleted('livets-tre', nextView);
-    }
-    setClosingSlide(null);
-    setIsQuizOpen(false);
-    setLightboxNode(null);
-    if (window.innerWidth < 1024) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, []);
+  const handleSelectView = useCallback(
+    (nextView: AppView) => {
+      setActiveView(nextView);
+      if (nextView !== 'biologi') {
+        setActiveThemeId(nextView);
+        progressService.markSubchapterCompleted('livets-tre', nextView);
+      }
+      setClosingSlide(null);
+      setIsQuizOpen(false);
+      setLightboxNode(null);
+      navigate(
+        nextView === 'biologi' ? '/livets-tre' : `/livets-tre/${nextView}`,
+      );
+      if (window.innerWidth < 1024) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    [navigate],
+  );
 
   const handleSelectTheme = useCallback(
     (nextThemeId: ThemeId) => {
@@ -568,9 +594,16 @@ export function App() {
       )}
 
       <QrShareModal
-        activeTheme={activeTheme}
         isOpen={isQrOpen}
         onClose={() => setIsQrOpen(false)}
+        routePath={
+          activeView === 'biologi' ? '/livets-tre' : `/livets-tre/${activeView}`
+        }
+        badgeLabel={activeView === 'biologi' ? 'Temastartside' : 'Undertema'}
+        title={
+          activeView === 'biologi' ? 'Biologi & Livets tre' : activeTheme.title
+        }
+        accent="emerald"
       />
 
       <ImageLightbox

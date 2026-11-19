@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { QrShareModal } from '../components/QrShareModal';
 import { AntiCheatAssignment, OralAiExaminer } from '../core/assessment';
 import {
   PortalTopBar,
@@ -136,9 +137,38 @@ export default function Dashboard() {
   const [activeAssessmentTab, setActiveAssessmentTab] = useState<
     'anticheat' | 'oral'
   >('anticheat');
+  const [isQrOpen, setIsQrOpen] = useState(false);
 
   useEffect(() => {
     document.title = 'Naturfag Vg1 (NAT01-05) | Interaktiv Læringsportal';
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (
+        (e.key === 'k' || e.key === 'K') &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        setIsQrOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const activeTopics = NAT01_05_TOPICS.filter((t) => t.available);
@@ -157,7 +187,10 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen portal-canvas text-slate-100">
-      <PortalTopBar overallPercentage={overallPercentage} />
+      <PortalTopBar
+        overallPercentage={overallPercentage}
+        onOpenQrModal={() => setIsQrOpen(true)}
+      />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
         {/* Hero / Overview Banner */}
@@ -279,6 +312,15 @@ export default function Dashboard() {
           )}
         </section>
       </main>
+
+      <QrShareModal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        routePath="/"
+        badgeLabel="Hovedside"
+        title="Naturfag VG1"
+        accent="sky"
+      />
     </div>
   );
 }

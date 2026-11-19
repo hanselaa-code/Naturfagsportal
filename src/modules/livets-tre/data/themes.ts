@@ -375,8 +375,17 @@ export const THEME_LIST: ThemeConfig[] = [
   THEMES['kroppens-evolusjon'],
 ];
 
-export function parseThemeFromHash(hash: string): ThemeId {
-  const clean = hash.replace(/^#/, '').trim().toLowerCase();
+export function parseViewFromHash(hash: string): AppView {
+  const raw = hash.replace(/^#/, '').trim();
+  let clean = raw.toLowerCase();
+  try {
+    clean = decodeURIComponent(raw).toLowerCase();
+  } catch {
+    // Keep raw lowercased string on malformed URI encoding
+  }
+  if (clean === 'livets-tre' || clean === 'stamtre') {
+    return 'livets-tre';
+  }
   if (clean === 'kroppens-evolusjon' || clean === 'kroppen') {
     return 'kroppens-evolusjon';
   }
@@ -415,5 +424,10 @@ export function parseThemeFromHash(hash: string): ThemeId {
   if (clean === 'evolusjon') {
     return 'evolusjon';
   }
-  return 'livets-tre';
+  return 'biologi';
+}
+
+export function parseThemeFromHash(hash: string): ThemeId {
+  const view = parseViewFromHash(hash);
+  return view === 'biologi' ? 'livets-tre' : view;
 }

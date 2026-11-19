@@ -1,8 +1,17 @@
-import { ArrowLeft, Atom, BookOpenCheck, Compass, HeartPulse, TreeDeciduous } from 'lucide-react';
+import {
+  ArrowLeft,
+  Atom,
+  BookOpenCheck,
+  Compass,
+  HeartPulse,
+  QrCode,
+  TreeDeciduous,
+} from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface PortalTopBarProps {
   overallPercentage?: number;
+  onOpenQrModal?: () => void;
 }
 
 const MODULE_LINKS = [
@@ -11,7 +20,10 @@ const MODULE_LINKS = [
   { path: '/livets-tre', label: 'Livets tre', icon: TreeDeciduous, color: 'text-emerald-300' },
 ];
 
-export function PortalTopBar({ overallPercentage }: PortalTopBarProps) {
+export function PortalTopBar({
+  overallPercentage,
+  onOpenQrModal,
+}: PortalTopBarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === '/';
@@ -53,7 +65,9 @@ export function PortalTopBar({ overallPercentage }: PortalTopBarProps) {
         <nav className="hidden items-center gap-1.5 md:flex">
           {MODULE_LINKS.map((item) => {
             const Icon = item.icon;
-            const active = location.pathname === item.path;
+            const active =
+              location.pathname === item.path ||
+              location.pathname.startsWith(`${item.path}/`);
             return (
               <button
                 key={item.path}
@@ -72,15 +86,33 @@ export function PortalTopBar({ overallPercentage }: PortalTopBarProps) {
           })}
         </nav>
 
-        {typeof overallPercentage === 'number' && (
-          <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-1.5 text-xs">
-            <BookOpenCheck className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="text-slate-400 hidden sm:inline">Total progresjon:</span>
-            <span className="font-mono-time font-semibold text-slate-100">
-              {overallPercentage}%
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {onOpenQrModal && (
+            <button
+              id="btn-portal-qr"
+              type="button"
+              onClick={onOpenQrModal}
+              title="Vis QR-kode for hovedsiden (K)"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/25 cursor-pointer"
+            >
+              <QrCode className="h-3.5 w-3.5 text-sky-300" />
+              <span>QR-kode</span>
+              <kbd className="hidden md:inline-block rounded bg-black/25 px-1.5 py-0.5 font-mono-time text-[10px] text-sky-200/90">
+                K
+              </kbd>
+            </button>
+          )}
+
+          {typeof overallPercentage === 'number' && (
+            <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-1.5 text-xs">
+              <BookOpenCheck className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-slate-400 hidden sm:inline">Total progresjon:</span>
+              <span className="font-mono-time font-semibold text-slate-100">
+                {overallPercentage}%
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

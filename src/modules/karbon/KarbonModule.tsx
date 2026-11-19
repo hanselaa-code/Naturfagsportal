@@ -1,9 +1,11 @@
 import { ArrowLeft, ArrowRight, Construction, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   FullscreenClosingSlide,
   type ClosingSlideMode,
 } from '../../components/FullscreenClosingSlide';
+import { QrShareModal } from '../../components/QrShareModal';
 import { progressService } from '../../core/storage';
 import { REFLECTION_PROMPTS } from '../../data/reflectionPrompts';
 import { AtomBindingExplorer } from './components/AtomBindingExplorer';
@@ -21,15 +23,22 @@ import {
 import {
   KARBON_THEME_LIST,
   KARBON_THEMES,
+  parseKarbonView,
   type KarbonAppView,
 } from './data/karbonThemes';
 
 export function KarbonModule() {
-  const [activeView, setActiveView] = useState<KarbonAppView>('karbon');
+  const { tema } = useParams<{ tema?: string }>();
+  const navigate = useNavigate();
+
+  const [activeView, setActiveView] = useState<KarbonAppView>(() =>
+    parseKarbonView(tema),
+  );
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [unlockedStepIndex, setUnlockedStepIndex] = useState(0);
   const [showAllSteps, setShowAllSteps] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [closingSlide, setClosingSlide] = useState<ClosingSlideMode | null>(
     null,
@@ -41,14 +50,7 @@ export function KarbonModule() {
   }, []);
 
   useEffect(() => {
-    const title =
-      activeView === 'karbon'
-        ? 'Karbon – Oversikt'
-        : KARBON_THEMES[activeView].title;
-    document.title = `${title} | Naturfag Vg1`;
-  }, [activeView]);
-
-  const handleSelectView = useCallback((nextView: KarbonAppView) => {
+    const nextView = parseKarbonView(tema);
     setActiveView(nextView);
     setCurrentStepIndex(0);
     setUnlockedStepIndex(0);
@@ -61,7 +63,34 @@ export function KarbonModule() {
         'atommodell-bindinger',
       );
     }
-  }, []);
+  }, [tema]);
+
+  useEffect(() => {
+    const title =
+      activeView === 'karbon'
+        ? 'Karbon – Oversikt'
+        : KARBON_THEMES[activeView].title;
+    document.title = `${title} | Naturfag Vg1`;
+  }, [activeView]);
+
+  const handleSelectView = useCallback(
+    (nextView: KarbonAppView) => {
+      setActiveView(nextView);
+      setCurrentStepIndex(0);
+      setUnlockedStepIndex(0);
+      setClosingSlide(null);
+      setIsQuizOpen(false);
+      setLightboxNode(null);
+      if (nextView === 'atommodell-bindinger') {
+        progressService.markSubchapterCompleted(
+          'kjemiske-bindinger',
+          'atommodell-bindinger',
+        );
+      }
+      navigate(nextView === 'karbon' ? '/karbon' : `/karbon/${nextView}`);
+    },
+    [navigate],
+  );
 
   const jumpToStep = useCallback((nextIdx: number) => {
     const clamped = Math.max(
@@ -74,7 +103,7 @@ export function KarbonModule() {
   }, []);
 
   const handleNext = useCallback(() => {
-    if (isQuizOpen) return;
+    if (isQuizOpen || isQrOpen) return;
     if (isFullscreen && closingSlide === 'summary') {
       setClosingSlide('questions');
       return;
@@ -90,9 +119,20 @@ export function KarbonModule() {
     } else {
       setIsQuizOpen(true);
     }
-  }, [closingSlide, currentStepIndex, isFullscreen, isQuizOpen, jumpToStep]);
+  }, [
+    closingSlide,
+    currentStepIndex,
+    isFullscreen,
+    isQrOpen,
+    isQuizOpen,
+    jumpToStep,
+  ]);
 
   const handlePrev = useCallback(() => {
+    if (isQrOpen) {
+      setIsQrOpen(false);
+      return;
+    }
     if (isQuizOpen) {
       setIsQuizOpen(false);
       return;
@@ -108,7 +148,14 @@ export function KarbonModule() {
     if (currentStepIndex > 0) {
       jumpToStep(currentStepIndex - 1);
     }
-  }, [closingSlide, currentStepIndex, isFullscreen, isQuizOpen, jumpToStep]);
+  }, [
+    closingSlide,
+    currentStepIndex,
+    isFullscreen,
+    isQrOpen,
+    isQuizOpen,
+    jumpToStep,
+  ]);
 
   const toggleFullscreen = useCallback(async () => {
     try {
@@ -134,9 +181,8 @@ export function KarbonModule() {
     }
   }, [isFullscreen]);
 
-  // PowerPoint keyboard navigation for ready subtopics
+  // Classroom keyboard shortcuts (QR works everywhere; slide controls on ready subtopics)
   useEffect(() => {
-    if (activeView !== 'atommodell-bindinger') return;
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (
@@ -153,11 +199,28 @@ export function KarbonModule() {
           setLightboxNode(null);
           return;
         }
+        if (isQrOpen) {
+          setIsQrOpen(false);
+          return;
+        }
         if (isQuizOpen) {
           setIsQuizOpen(false);
           return;
         }
       }
+
+      if (
+        (e.key === 'k' || e.key === 'K') &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        setIsQrOpen((prev) => !prev);
+        return;
+      }
+
+      if (activeView !== 'atommodell-bindinger') return;
 
       if (
         (e.key === 'q' || e.key === 'Q') &&
@@ -181,7 +244,7 @@ export function KarbonModule() {
         return;
       }
 
-      if (lightboxNode || isQuizOpen) return;
+      if (lightboxNode || isQuizOpen || isQrOpen) return;
 
       if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
@@ -198,6 +261,7 @@ export function KarbonModule() {
     activeView,
     handleNext,
     handlePrev,
+    isQrOpen,
     isQuizOpen,
     lightboxNode,
     toggleFullscreen,
@@ -228,6 +292,7 @@ export function KarbonModule() {
         onSelectView={handleSelectView}
         onToggleShowAll={() => setShowAllSteps((prev) => !prev)}
         onToggleQuiz={() => setIsQuizOpen((prev) => !prev)}
+        onOpenQrModal={() => setIsQrOpen(true)}
         onToggleFullscreen={() => void toggleFullscreen()}
       />
 
@@ -449,6 +514,18 @@ export function KarbonModule() {
           </div>
         </div>
       )}
+      <QrShareModal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        routePath={activeView === 'karbon' ? '/karbon' : `/karbon/${activeView}`}
+        badgeLabel={activeView === 'karbon' ? 'Temastartside' : 'Undertema'}
+        title={
+          activeView === 'karbon'
+            ? 'Karbonforbindelser'
+            : KARBON_THEMES[activeView].title
+        }
+        accent="violet"
+      />
     </div>
   );
 }
