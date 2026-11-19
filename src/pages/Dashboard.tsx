@@ -1,6 +1,8 @@
 import {
+  ArrowRight,
   Atom,
   BookOpen,
+  ClipboardCheck,
   FlaskConical,
   Globe2,
   HeartPulse,
@@ -130,6 +132,10 @@ const NAT01_05_TOPICS: TopicCardConfig[] = [
     competenceGoalsCount: 5,
   },
 ];
+
+const INNLEVERING_PORTAL_URL: string =
+  (import.meta.env.VITE_INNLEVERING_PORTAL_URL as string | undefined) ||
+  'https://hanselaa-code.github.io/innleveringsportal/';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -263,6 +269,75 @@ export default function Dashboard() {
                 onSelect={(route) => navigate(route)}
               />
             ))}
+
+            <a
+              href={INNLEVERING_PORTAL_URL}
+              className="group glass-panel relative flex flex-col justify-between overflow-hidden rounded-2xl transition-all duration-300 cursor-pointer hover:border-sky-400/45 hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-500/10"
+            >
+              <div className="relative aspect-video w-full overflow-hidden border-b border-slate-800/80 bg-gradient-to-br from-sky-950/90 via-[#0B1324] to-emerald-950/80 flex items-center justify-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/30 transition-transform duration-500 group-hover:scale-110">
+                  <ClipboardCheck className="h-8 w-8" />
+                </div>
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0B1222] via-transparent to-black/20" />
+                <div className="absolute top-3 left-3 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/30 bg-sky-500/15 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-sky-300 backdrop-blur-md">
+                    Portal • Innlevering
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-1 flex-col justify-between p-6">
+                <div>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-400 ring-1 ring-sky-400/30">
+                        <ClipboardCheck className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-display text-lg font-bold text-slate-50">
+                          Innlevering
+                        </h3>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="mb-4 text-sm leading-relaxed text-slate-300/90">
+                    Logg inn som elev eller lærer for å levere oppgaver med
+                    kamera, filopplasting eller kopisperre, og motta automatisk
+                    AI-vurdering.
+                  </p>
+
+                  <div className="mb-5 flex flex-wrap gap-1.5">
+                    {[
+                      'Elev-innlogging',
+                      'Kamera & fil',
+                      'Kopisperre',
+                      'AI-sensor',
+                    ].map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-lg bg-slate-800/75 px-2.5 py-1 text-xs font-medium text-slate-300 ring-1 ring-white/5"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4 border-t border-slate-800/80 pt-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                      Krever innlogging
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/30 bg-sky-500/15 px-3.5 py-1.5 text-xs font-semibold text-sky-200 transition-colors hover:bg-sky-500/25">
+                      Gå til innlevering
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </a>
           </div>
         </section>
 
