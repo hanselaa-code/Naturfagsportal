@@ -1,6 +1,7 @@
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AlertTriangle, Loader2, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { auth } from '../../core/firebase';
 import { AdminDashboard } from './components/AdminDashboard';
 import { LoginView } from './components/LoginView';
@@ -13,6 +14,10 @@ import {
 import type { StudentProfile } from './types';
 
 export default function InnleveringModule() {
+  const { assignmentId } = useParams<{ assignmentId?: string }>();
+  const [searchParams] = useSearchParams();
+  const preselectedClassId = searchParams.get('klasse') ?? undefined;
+
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(
@@ -83,7 +88,12 @@ export default function InnleveringModule() {
   }
 
   if (!user) {
-    return <LoginView />;
+    return (
+      <LoginView
+        preselectedClassId={preselectedClassId}
+        hasDeepLinkAssignment={Boolean(assignmentId)}
+      />
+    );
   }
 
   if (isAdminUser(user)) {
@@ -91,7 +101,12 @@ export default function InnleveringModule() {
   }
 
   if (studentProfile) {
-    return <StudentPortal student={studentProfile} />;
+    return (
+      <StudentPortal
+        student={studentProfile}
+        initialAssignmentId={assignmentId}
+      />
+    );
   }
 
   return (

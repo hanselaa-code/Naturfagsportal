@@ -18,7 +18,15 @@ import {
 } from '../services/innleveringService';
 import { ADMIN_EMAIL, type Classroom } from '../types';
 
-export function LoginView() {
+interface LoginViewProps {
+  preselectedClassId?: string;
+  hasDeepLinkAssignment?: boolean;
+}
+
+export function LoginView({
+  preselectedClassId,
+  hasDeepLinkAssignment = false,
+}: LoginViewProps) {
   const [mode, setMode] = useState<'student' | 'admin'>('student');
   const [classes, setClasses] = useState<Classroom[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
@@ -42,7 +50,10 @@ export function LoginView() {
         if (!mounted) return;
         setClasses(result);
         if (result.length > 0) {
-          setSelectedClassId(result[0].id);
+          const matching = preselectedClassId
+            ? result.find((c) => c.id === preselectedClassId)
+            : undefined;
+          setSelectedClassId(matching ? matching.id : result[0].id);
         }
       } catch (err) {
         if (!mounted) return;
@@ -60,7 +71,7 @@ export function LoginView() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [preselectedClassId]);
 
   const handleStudentLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -156,6 +167,18 @@ export function LoginView() {
             Admin (Lærer)
           </button>
         </div>
+
+        {/* Deep-link notice when opened via QR code / Teams link */}
+        {hasDeepLinkAssignment && (
+          <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-sky-400/35 bg-sky-500/10 p-3.5 text-xs leading-relaxed text-sky-200">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
+            <span>
+              <strong>Innleveringsoppgave via QR-kode/lenke:</strong> Logg inn
+              med klassen din, brukernavn og passord for å gå rett inn i
+              oppgaven.
+            </span>
+          </div>
+        )}
 
         {/* Error Box */}
         {error && (

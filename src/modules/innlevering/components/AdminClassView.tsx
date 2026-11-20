@@ -11,6 +11,7 @@ import {
   EyeOff,
   Loader2,
   Plus,
+  QrCode,
   Sparkles,
   Trash2,
   Upload,
@@ -47,6 +48,7 @@ import {
 } from '../types';
 import { AdminStudentDetail } from './AdminStudentDetail';
 import { getGradeBadgeStyle } from './AiFeedbackCard';
+import { AssignmentQrModal } from './AssignmentQrModal';
 
 interface AdminClassViewProps {
   classroom: Classroom;
@@ -94,6 +96,7 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
   const [minWords, setMinWords] = useState(50);
   const [published, setPublished] = useState(true);
   const [savingAssignment, setSavingAssignment] = useState(false);
+  const [qrAssignment, setQrAssignment] = useState<Assignment | null>(null);
 
   // Add student form state
   const [showStudentForm, setShowStudentForm] = useState(false);
@@ -185,7 +188,7 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
           published,
         });
       } else {
-        await createAssignment({
+        const createdAssignment = await createAssignment({
           classId: classroom.id,
           title,
           description,
@@ -196,6 +199,7 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
           minWords,
           published,
         });
+        setQrAssignment(createdAssignment);
       }
       resetAssignmentForm();
       await loadClassData();
@@ -671,6 +675,15 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
+                          onClick={() => setQrAssignment(a)}
+                          title="Vis QR-kode og delingslenke (Teams / tavle)"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-sky-400/40 bg-sky-500/15 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/25"
+                        >
+                          <QrCode className="h-4 w-4" />
+                          QR-kode
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleTogglePublished(a)}
                           title={a.published ? 'Skjul for elever' : 'Publiser'}
                           className="rounded-lg border border-slate-700 bg-slate-900/80 p-2 text-slate-300 hover:border-sky-400/40 hover:text-white"
@@ -1119,6 +1132,12 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
           )}
         </div>
       )}
+
+      <AssignmentQrModal
+        assignment={qrAssignment}
+        className={classroom.name}
+        onClose={() => setQrAssignment(null)}
+      />
     </div>
   );
 }

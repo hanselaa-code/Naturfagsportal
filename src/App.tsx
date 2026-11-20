@@ -138,6 +138,16 @@ export function App() {
             </Suspense>
           }
         />
+        <Route
+          path="/innlevering/oppgave/:assignmentId"
+          element={
+            <Suspense fallback={<ModuleLoadingFallback title="Innlevering" />}>
+              <ModuleShell>
+                <InnleveringModule />
+              </ModuleShell>
+            </Suspense>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>

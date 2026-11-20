@@ -37,9 +37,13 @@ import { AiFeedbackCard, getGradeBadgeStyle } from './AiFeedbackCard';
 
 interface StudentPortalProps {
   student: StudentProfile;
+  initialAssignmentId?: string;
 }
 
-export function StudentPortal({ student }: StudentPortalProps) {
+export function StudentPortal({
+  student,
+  initialAssignmentId,
+}: StudentPortalProps) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +52,7 @@ export function StudentPortal({ student }: StudentPortalProps) {
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<
     string | null
   >(null);
+  const [handledInitialDeepLink, setHandledInitialDeepLink] = useState(false);
 
   // Editor state
   const [answerText, setAnswerText] = useState('');
@@ -91,16 +96,42 @@ export function StudentPortal({ student }: StudentPortalProps) {
 
   const isAnticheat = selectedAssignment?.submissionType === 'anticheat';
 
-  const openAssignment = (assignment: Assignment) => {
-    const existing = submissions.find((s) => s.assignmentId === assignment.id);
-    setSelectedAssignmentId(assignment.id);
-    setAnswerText(existing?.answerText ?? '');
-    setTabSwitchCount(existing?.integrity?.tabSwitchCount ?? 0);
-    setBlockedActionCount(existing?.integrity?.blockedActionCount ?? 0);
-    setIntegrityEvents(existing?.integrity?.events ?? []);
-    setIntegrityWarning(null);
-    setError(null);
-  };
+  const openAssignment = useCallback(
+    (assignment: Assignment, subList: Submission[] = submissions) => {
+      const existing = subList.find((s) => s.assignmentId === assignment.id);
+      setSelectedAssignmentId(assignment.id);
+      setAnswerText(existing?.answerText ?? '');
+      setTabSwitchCount(existing?.integrity?.tabSwitchCount ?? 0);
+      setBlockedActionCount(existing?.integrity?.blockedActionCount ?? 0);
+      setIntegrityEvents(existing?.integrity?.events ?? []);
+      setIntegrityWarning(null);
+      setError(null);
+    },
+    [submissions],
+  );
+
+  // Auto-open assignment when arriving via QR code / Teams link
+  useEffect(() => {
+    if (loading || handledInitialDeepLink || !initialAssignmentId) return;
+    setHandledInitialDeepLink(true);
+
+    const target = assignments.find((a) => a.id === initialAssignmentId);
+    if (target) {
+      openAssignment(target, submissions);
+    } else {
+      setError(
+        `Fant ikke oppgaven fra QR-koden/lenken i klassen din (${student.className}). Sjekk at du er logget inn i riktig klasse og at oppgaven er publisert.`,
+      );
+    }
+  }, [
+    loading,
+    handledInitialDeepLink,
+    initialAssignmentId,
+    assignments,
+    submissions,
+    openAssignment,
+    student.className,
+  ]);
 
   // Kopisperre: visibilitychange (tab switch) listener
   useEffect(() => {
