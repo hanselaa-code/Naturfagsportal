@@ -133,10 +133,6 @@ const NAT01_05_TOPICS: TopicCardConfig[] = [
   },
 ];
 
-const INNLEVERING_PORTAL_URL: string =
-  (import.meta.env.VITE_INNLEVERING_PORTAL_URL as string | undefined) ||
-  'https://hanselaa-code.github.io/innleveringsportal/';
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const { progress, resetAllProgress } = usePortalProgress();
@@ -270,9 +266,10 @@ export default function Dashboard() {
               />
             ))}
 
-            <a
-              href={INNLEVERING_PORTAL_URL}
-              className="group glass-panel relative flex flex-col justify-between overflow-hidden rounded-2xl transition-all duration-300 cursor-pointer hover:border-sky-400/45 hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-500/10"
+            <button
+              type="button"
+              onClick={() => navigate('/innlevering')}
+              className="group glass-panel relative flex flex-col justify-between overflow-hidden rounded-2xl text-left transition-all duration-300 cursor-pointer hover:border-sky-400/45 hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-500/10"
             >
               <div className="relative aspect-video w-full overflow-hidden border-b border-slate-800/80 bg-gradient-to-br from-sky-950/90 via-[#0B1324] to-emerald-950/80 flex items-center justify-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/30 transition-transform duration-500 group-hover:scale-110">
@@ -337,7 +334,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            </a>
+            </button>
           </div>
         </section>
 

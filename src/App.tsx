@@ -12,6 +12,9 @@ const LivetsTreModule = lazy(
 const HelseErneringModule = lazy(
   () => import('./modules/helse-ernering/HelseErneringModule'),
 );
+const InnleveringModule = lazy(
+  () => import('./modules/innlevering/InnleveringModule'),
+);
 
 function ModuleLoadingFallback({ title }: { title: string }) {
   return (
@@ -121,6 +124,16 @@ export function App() {
             >
               <ModuleShell>
                 <HelseErneringModule />
+              </ModuleShell>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/innlevering"
+          element={
+            <Suspense fallback={<ModuleLoadingFallback title="Innlevering" />}>
+              <ModuleShell>
+                <InnleveringModule />
               </ModuleShell>
             </Suspense>
           }

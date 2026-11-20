@@ -1,0 +1,348 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// This security rules file assumes the following data structures
+// for the Naturfagsportal Innlevering module (Firebase project: naturportal-23cba):
+//
+// Collection: classes
+// Document ID: {classId} (auto-generated or slug)
+// PII: NONE (intentionally public-readable for pre-login class dropdown)
+// Fields:
+//   - name: string (required, 1..100 chars) - Class display name
+//   - schoolYear: string (required, 1..30 chars) - e.g. "2025/2026"
+//   - description: string (optional, 0..1000 chars) - Optional class description
+//   - createdAt: string (required, ISO 8601 string, <= 64 chars, immutable)
+//
+// Collection: students
+// Document ID: {studentUid} (matches Firebase Auth UID)
+// PII: YES (fullName, username, authEmail) - strictly admin or self read only
+// Fields:
+//   - uid: string (required, == studentUid, 1..128 chars, immutable)
+//   - classId: string (required, 1..128 chars)
+//   - className: string (required, 1..100 chars)
+//   - fullName: string (required, 1..120 chars)
+//   - username: string (required, 1..64 chars)
+//   - authEmail: string (required, valid email, <= 254 chars)
+//   - active: bool (required)
+//   - createdAt: string (required, ISO 8601 string, <= 64 chars, immutable)
+//
+// Collection: adminStudentCredentials
+// Document ID: {studentUid}
+// PII / Secrets: YES (managed student passwords) - strictly admin only
+// Fields:
+//   - username: string (required, 1..64 chars)
+//   - password: string (required, 1..128 chars)
+//   - classId: string (required, 1..128 chars)
+//   - fullName: string (required, 1..120 chars)
+//   - updatedAt: string (required, ISO 8601 string, <= 64 chars)
+//
+// Collection: assignments
+// Document ID: {assignmentId}
+// Fields:
+//   - classId: string (required, 1..128 chars)
+//   - title: string (required, 1..200 chars)
+//   - description: string (required, 0..10000 chars)
+//   - criteria: string (required, 0..10000 chars)
+//   - dueDate: string (required, 0..64 chars)
+//   - submissionType: string (required, in ['anticheat', 'text', 'oral'])
+//   - gradingScale: string (required, in ['grades_1_6', 'pass_fail', 'achievement_levels'])
+//   - minWords: number (required, 0..50000)
+//   - published: bool (required)
+//   - createdAt: string (required, ISO 8601 string, <= 64 chars, immutable)
+//   - updatedAt: string (required, ISO 8601 string, <= 64 chars)
+//
+// Collection: submissions
+// Document ID: {submissionId} (deterministic: assignmentId + '_' + studentUid)
+// Fields:
+//   - assignmentId: string (required, 1..128 chars, immutable)
+//   - assignmentTitle: string (required, 1..200 chars)
+//   - classId: string (required, 1..128 chars, immutable)
+//   - studentUid: string (required, 1..128 chars, immutable)
+//   - studentName: string (required, 1..120 chars)
+//   - studentUsername: string (required, 1..64 chars)
+//   - submissionType: string (required, in ['anticheat', 'text', 'oral'])
+//   - answerText: string (required, 0..100000 chars)
+//   - wordCount: number (required, 0..50000)
+//   - submittedAt: string (required, ISO 8601 string, <= 64 chars)
+//   - isLate: bool (required)
+//   - integrity: map (optional, <= 30 keys)
+//   - aiAssessment: map (optional, <= 30 keys)
+//   - teacherNote: string (optional, 0..5000 chars, admin-only write)
+//   - teacherGradeOverride: string (optional, 0..100 chars, admin-only write)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Strictly verified teacher/admin identity
+    function isAdmin() {
+      return isAuthenticated() &&
+        'email_verified' in request.auth.token &&
+        request.auth.token.email_verified == true &&
+        'email' in request.auth.token &&
+        request.auth.token.email is string &&
+        request.auth.token.email.lower() == 'hanselaa@gmail.com';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function studentDocPath() {
+      return /databases/$(database)/documents/students/$(request.auth.uid);
+    }
+
+    function isActiveStudentProfile(profile) {
+      return profile.active == true &&
+        profile.classId is string &&
+        profile.classId.size() > 0;
+    }
+
+    function isActiveStudent() {
+      return isAuthenticated() &&
+        exists(studentDocPath()) &&
+        isActiveStudentProfile(get(studentDocPath()).data);
+    }
+
+    function studentClassId() {
+      return get(studentDocPath()).data.classId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+        isValidString(request.resource.data[field], minLen, maxLen);
+    }
+
+    function isValidOptionalMap(field, maxKeys) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is map &&
+         request.resource.data[field].keys().size() <= maxKeys);
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() <= 254 &&
+        email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.size() <= 64 &&
+        dateStr.matches('^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$');
+    }
+
+    // ===============================================================
+    // Domain Validators (Used in BOTH create and update)
+    // ===============================================================
+
+    function isValidClass(data) {
+      return hasOnlyAllowedFields(['name', 'schoolYear', 'description', 'createdAt']) &&
+        hasRequiredFields(['name', 'schoolYear', 'createdAt']) &&
+        isValidString(data.name, 1, 100) &&
+        isValidString(data.schoolYear, 1, 30) &&
+        isValidOptionalString('description', 0, 1000) &&
+        isValidDateString(data.createdAt);
+    }
+
+    function isValidStudent(data, studentUid) {
+      return hasOnlyAllowedFields([
+          'uid', 'classId', 'className', 'fullName',
+          'username', 'authEmail', 'active', 'createdAt'
+        ]) &&
+        hasRequiredFields([
+          'uid', 'classId', 'className', 'fullName',
+          'username', 'authEmail', 'active', 'createdAt'
+        ]) &&
+        isValidString(data.uid, 1, 128) &&
+        data.uid == studentUid &&
+        isValidString(data.classId, 1, 128) &&
+        isValidString(data.className, 1, 100) &&
+        isValidString(data.fullName, 1, 120) &&
+        isValidString(data.username, 1, 64) &&
+        isValidEmail(data.authEmail) &&
+        data.active is bool &&
+        isValidDateString(data.createdAt);
+    }
+
+    function isValidAdminStudentCredential(data) {
+      return hasOnlyAllowedFields(['username', 'password', 'classId', 'fullName', 'updatedAt']) &&
+        hasRequiredFields(['username', 'password', 'classId', 'fullName', 'updatedAt']) &&
+        isValidString(data.username, 1, 64) &&
+        isValidString(data.password, 1, 128) &&
+        isValidString(data.classId, 1, 128) &&
+        isValidString(data.fullName, 1, 120) &&
+        isValidDateString(data.updatedAt);
+    }
+
+    function isValidAssignment(data) {
+      return hasOnlyAllowedFields([
+          'classId', 'title', 'description', 'criteria', 'dueDate',
+          'submissionType', 'gradingScale', 'minWords', 'published',
+          'createdAt', 'updatedAt'
+        ]) &&
+        hasRequiredFields([
+          'classId', 'title', 'description', 'criteria', 'dueDate',
+          'submissionType', 'gradingScale', 'minWords', 'published',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.classId, 1, 128) &&
+        isValidString(data.title, 1, 200) &&
+        isValidString(data.description, 0, 10000) &&
+        isValidString(data.criteria, 0, 10000) &&
+        isValidString(data.dueDate, 0, 64) &&
+        data.submissionType in ['anticheat', 'text', 'oral'] &&
+        data.gradingScale in ['grades_1_6', 'pass_fail', 'achievement_levels'] &&
+        data.minWords is number && data.minWords >= 0 && data.minWords <= 50000 &&
+        data.published is bool &&
+        isValidDateString(data.createdAt) &&
+        isValidDateString(data.updatedAt);
+    }
+
+    function isValidSubmission(data, submissionId) {
+      return hasOnlyAllowedFields([
+          'assignmentId', 'assignmentTitle', 'classId', 'studentUid',
+          'studentName', 'studentUsername', 'submissionType', 'answerText',
+          'wordCount', 'submittedAt', 'isLate', 'integrity', 'aiAssessment',
+          'teacherNote', 'teacherGradeOverride'
+        ]) &&
+        hasRequiredFields([
+          'assignmentId', 'assignmentTitle', 'classId', 'studentUid',
+          'studentName', 'studentUsername', 'submissionType', 'answerText',
+          'wordCount', 'submittedAt', 'isLate'
+        ]) &&
+        isValidString(data.assignmentId, 1, 128) &&
+        isValidString(data.assignmentTitle, 1, 200) &&
+        isValidString(data.classId, 1, 128) &&
+        isValidString(data.studentUid, 1, 128) &&
+        submissionId == data.assignmentId + '_' + data.studentUid &&
+        isValidString(data.studentName, 1, 120) &&
+        isValidString(data.studentUsername, 1, 64) &&
+        data.submissionType in ['anticheat', 'text', 'oral'] &&
+        isValidString(data.answerText, 0, 100000) &&
+        data.wordCount is number && data.wordCount >= 0 && data.wordCount <= 50000 &&
+        isValidDateString(data.submittedAt) &&
+        data.isLate is bool &&
+        isValidOptionalMap('integrity', 30) &&
+        isValidOptionalMap('aiAssessment', 30) &&
+        isValidOptionalString('teacherNote', 0, 5000) &&
+        isValidOptionalString('teacherGradeOverride', 0, 100);
+    }
+
+    function isPublishedAssignmentForClass(assignmentId, classId) {
+      let assignmentPath = /databases/$(database)/documents/assignments/$(assignmentId);
+      return exists(assignmentPath) &&
+        get(assignmentPath).data.published == true &&
+        get(assignmentPath).data.classId == classId;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // Public-readable class directory (contains NO PII) for pre-login class selection
+    match /classes/{classId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidClass(request.resource.data);
+      allow update: if isAdmin() &&
+        isValidClass(request.resource.data) &&
+        areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // Student profiles (contains PII) - strictly admin or the student themselves
+    match /students/{studentUid} {
+      allow read: if isAdmin() || isOwner(studentUid);
+      allow create: if isAdmin() && isValidStudent(request.resource.data, studentUid);
+      allow update: if isAdmin() &&
+        isValidStudent(request.resource.data, studentUid) &&
+        areImmutableFieldsUnchanged(['uid', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // Admin-managed student login credentials - strictly admin ONLY
+    match /adminStudentCredentials/{studentUid} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidAdminStudentCredential(request.resource.data);
+      allow update: if isAdmin() && isValidAdminStudentCredential(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Assignments - readable by admin or active students in the same class when published
+    match /assignments/{assignmentId} {
+      allow read: if isAdmin() ||
+        (isActiveStudent() &&
+         resource.data.published == true &&
+         resource.data.classId == studentClassId());
+      allow create: if isAdmin() && isValidAssignment(request.resource.data);
+      allow update: if isAdmin() &&
+        isValidAssignment(request.resource.data) &&
+        areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // Student submissions - deterministic ID: assignmentId + '_' + studentUid
+    match /submissions/{submissionId} {
+      allow read: if isAdmin() ||
+        (isAuthenticated() &&
+         ((resource != null && resource.data.studentUid == request.auth.uid) ||
+          (resource == null && submissionId.matches('^.+_' + request.auth.uid + '$'))));
+
+      allow create: if isValidSubmission(request.resource.data, submissionId) && (
+        isAdmin() ||
+        (isActiveStudent() &&
+         request.resource.data.studentUid == request.auth.uid &&
+         submissionId == request.resource.data.assignmentId + '_' + request.auth.uid &&
+         request.resource.data.classId == studentClassId() &&
+         isPublishedAssignmentForClass(request.resource.data.assignmentId, studentClassId()) &&
+         !('teacherNote' in request.resource.data) &&
+         !('teacherGradeOverride' in request.resource.data))
+      );
+
+      allow update: if isValidSubmission(request.resource.data, submissionId) && (
+        (isAdmin() &&
+         areImmutableFieldsUnchanged(['studentUid', 'classId', 'assignmentId'])) ||
+        (isActiveStudent() &&
+         resource.data.studentUid == request.auth.uid &&
+         request.resource.data.classId == studentClassId() &&
+         areImmutableFieldsUnchanged([
+           'teacherNote', 'teacherGradeOverride', 'studentUid', 'classId', 'assignmentId'
+         ]))
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
