@@ -13,6 +13,7 @@ import {
   Plus,
   Sparkles,
   Trash2,
+  Upload,
   UserPlus,
   Users,
   Wand2,
@@ -102,6 +103,18 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
     generateStudentPassword,
   );
   const [savingStudent, setSavingStudent] = useState(false);
+
+  // Bulk import students state
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{
+    done: number;
+    total: number;
+    created: number;
+    skipped: number;
+    errors: string[];
+  } | null>(null);
 
   const loadClassData = useCallback(async () => {
     try {
@@ -242,6 +255,65 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
     } finally {
       setSavingStudent(false);
     }
+  };
+
+  const handleBulkImport = async (e: FormEvent) => {
+    e.preventDefault();
+    const lines = bulkText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) return;
+
+    setBulkImporting(true);
+    setError(null);
+    const errors: string[] = [];
+    let created = 0;
+    let skipped = 0;
+    setBulkProgress({ done: 0, total: lines.length, created: 0, skipped: 0, errors: [] });
+
+    for (let i = 0; i < lines.length; i += 1) {
+      const parts = lines[i]
+        .split(/[,;\t|]+/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+      if (parts.length < 2) {
+        errors.push(`Linje ${i + 1} hoppet over (må ha minst brukernavn og passord): "${lines[i]}"`);
+        skipped += 1;
+      } else {
+        const fullName = parts.length >= 3 ? parts[0] : parts[0];
+        const username = parts.length >= 3 ? parts[1] : parts[0];
+        const password = parts.length >= 3 ? parts[2] : parts[1];
+
+        try {
+          await createStudentInClass({
+            classId: classroom.id,
+            className: classroom.name,
+            fullName,
+            username,
+            password,
+          });
+          created += 1;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push(`${username}: ${msg}`);
+          skipped += 1;
+        }
+      }
+
+      setBulkProgress({
+        done: i + 1,
+        total: lines.length,
+        created,
+        skipped,
+        errors: [...errors],
+      });
+    }
+
+    setBulkImporting(false);
+    await loadClassData();
   };
 
   const selectedStudent = students.find((s) => s.uid === selectedStudentUid);
@@ -686,7 +758,22 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
 
               <button
                 type="button"
-                onClick={() => setShowStudentForm((prev) => !prev)}
+                onClick={() => {
+                  setShowBulkImport((prev) => !prev);
+                  setShowStudentForm(false);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-sky-400/40 bg-sky-500/15 px-4 py-2 text-xs font-bold text-sky-200 transition hover:bg-sky-500/25"
+              >
+                <Upload className="h-4 w-4" />
+                Masseimporter
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStudentForm((prev) => !prev);
+                  setShowBulkImport(false);
+                }}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 transition hover:bg-emerald-400"
               >
                 <UserPlus className="h-4 w-4" />
@@ -694,6 +781,87 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
               </button>
             </div>
           </div>
+
+          {/* Bulk Import Students Form */}
+          {showBulkImport && (
+            <form
+              onSubmit={handleBulkImport}
+              className="glass-panel rounded-3xl border border-sky-400/30 p-5 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h4 className="font-display text-sm font-bold text-white">
+                    Masseimporter elever til {classroom.name}
+                  </h4>
+                  <p className="text-xs text-slate-400">
+                    Én elev per linje på formatet <code>Brukernavn, Passord</code>{' '}
+                    (eller <code>Fullt navn, Brukernavn, Passord</code>). Korte
+                    1-ords passord som «sol» støttes.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkImport(false)}
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <textarea
+                rows={8}
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                placeholder={'Simba, sol\nNala, vind\nElsa, snø'}
+                required
+                className="w-full rounded-xl border border-slate-700 bg-slate-900/90 p-3 font-mono text-xs text-white outline-none focus:border-sky-400"
+              />
+
+              {bulkProgress && (
+                <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3 text-xs space-y-1.5">
+                  <p className="font-semibold text-slate-200">
+                    Fremdrift: {bulkProgress.done} / {bulkProgress.total} •{' '}
+                    <span className="text-emerald-300">
+                      {bulkProgress.created} opprettet
+                    </span>
+                    {bulkProgress.skipped > 0 && (
+                      <span className="text-amber-300">
+                        {' '}
+                        • {bulkProgress.skipped} hoppet over
+                      </span>
+                    )}
+                  </p>
+                  {bulkProgress.errors.length > 0 && (
+                    <ul className="max-h-24 overflow-y-auto space-y-0.5 text-[11px] text-amber-200">
+                      {bulkProgress.errors.map((e, idx) => (
+                        <li key={idx}>• {e}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkImport(false)}
+                  className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                >
+                  Lukk
+                </button>
+                <button
+                  type="submit"
+                  disabled={bulkImporting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2 text-xs font-bold text-slate-950 transition hover:bg-sky-400 disabled:opacity-50"
+                >
+                  {bulkImporting && (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  )}
+                  {bulkImporting ? 'Importerer...' : 'Importer alle elever'}
+                </button>
+              </div>
+            </form>
+          )}
 
           {/* Add Student Form */}
           {showStudentForm && (
@@ -753,7 +921,7 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
 
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-300">
-                    Passord (minst 6 tegn)
+                    Passord (minst 2 tegn)
                   </label>
                   <div className="flex gap-1.5">
                     <input
@@ -761,7 +929,7 @@ export function AdminClassView({ classroom, onBack }: AdminClassViewProps) {
                       value={studentPassword}
                       onChange={(e) => setStudentPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={2}
                       className="w-full rounded-xl border border-slate-700 bg-slate-900/90 px-3 py-2.5 font-mono text-sm text-white outline-none focus:border-emerald-400"
                     />
                     <button

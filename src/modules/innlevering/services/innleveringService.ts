@@ -25,6 +25,7 @@ import { auth, db, firebaseConfig } from '../../../core/firebase';
 import {
   ADMIN_EMAIL,
   buildStudentAuthEmail,
+  buildStudentAuthPassword,
   countWords,
   normalizeUsername,
   type AiAssessment,
@@ -72,7 +73,23 @@ export async function signInStudent(
   }
 
   const email = buildStudentAuthEmail(cleanUsername, classId);
-  const credential = await signInWithEmailAndPassword(auth, email, password);
+  const wrappedPassword = buildStudentAuthPassword(password);
+
+  let credential;
+  try {
+    credential = await signInWithEmailAndPassword(auth, email, wrappedPassword);
+  } catch (err) {
+    // Fallback for any legacy accounts created with raw >= 6-char password
+    if (password.trim().length >= 6) {
+      credential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password.trim(),
+      );
+    } else {
+      throw err;
+    }
+  }
 
   const profile = await getStudentProfile(credential.user.uid);
   if (!profile) {
@@ -171,8 +188,8 @@ export async function listCredentialsByClass(
   const snap = await getDocs(q);
   const map: Record<string, StudentCredential> = {};
   snap.docs.forEach((d) => {
-    const data = d.data() as StudentCredential;
-    map[data.uid] = data;
+    const data = d.data() as Omit<StudentCredential, 'uid'>;
+    map[d.id] = { uid: d.id, ...data };
   });
   return map;
 }
@@ -192,11 +209,12 @@ export async function createStudentInClass(input: {
   if (username.length < 2) {
     throw new Error('Brukernavn må være minst 2 tegn (bokstaver/tall).');
   }
-  if (password.length < 6) {
-    throw new Error('Passord må være minst 6 tegn (krav fra Firebase Auth).');
+  if (password.length < 2) {
+    throw new Error('Passord må være minst 2 tegn.');
   }
 
   const authEmail = buildStudentAuthEmail(username, input.classId);
+  const authPassword = buildStudentAuthPassword(password);
 
   // Use an isolated secondary Firebase app so creating a student account
   // does NOT sign out the currently logged-in admin user.
@@ -209,7 +227,7 @@ export async function createStudentInClass(input: {
     const userCred = await createUserWithEmailAndPassword(
       secondaryAuth,
       authEmail,
-      password,
+      authPassword,
     );
     createdUid = userCred.user.uid;
     await signOut(secondaryAuth);
@@ -237,8 +255,7 @@ export async function createStudentInClass(input: {
     createdAt: now,
   };
 
-  const credential: StudentCredential = {
-    uid: createdUid,
+  const credentialPayload = {
     classId: input.classId,
     fullName,
     username,
@@ -247,9 +264,12 @@ export async function createStudentInClass(input: {
   };
 
   await setDoc(doc(db, 'students', createdUid), profile);
-  await setDoc(doc(db, 'adminStudentCredentials', createdUid), credential);
+  await setDoc(
+    doc(db, 'adminStudentCredentials', createdUid),
+    credentialPayload,
+  );
 
-  return { profile, credential };
+  return { profile, credential: { uid: createdUid, ...credentialPayload } };
 }
 
 export async function toggleStudentActive(

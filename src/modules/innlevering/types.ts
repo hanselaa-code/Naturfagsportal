@@ -171,6 +171,16 @@ export function buildStudentAuthEmail(
   return `${cleanUser}--${cleanClass}@elever.naturfagsportal.no`;
 }
 
+const STUDENT_AUTH_PASSWORD_PREFIX = 'nf26#';
+
+/**
+ * Wraps short student passwords (e.g. 1-word passwords like "sol", "snø")
+ * so they always satisfy Firebase Auth's 6-character minimum requirement.
+ */
+export function buildStudentAuthPassword(rawPassword: string): string {
+  return `${STUDENT_AUTH_PASSWORD_PREFIX}${rawPassword.trim()}`;
+}
+
 export function getGradingScaleLabel(scale: GradingScale): string {
   return (
     GRADING_SCALE_OPTIONS.find((o) => o.value === scale)?.label ?? scale
