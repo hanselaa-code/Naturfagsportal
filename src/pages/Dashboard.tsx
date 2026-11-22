@@ -14,7 +14,6 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QrShareModal } from '../components/QrShareModal';
-import { AntiCheatAssignment, OralAiExaminer } from '../core/assessment';
 import {
   PortalTopBar,
   ProgressBar,
@@ -136,9 +135,6 @@ const NAT01_05_TOPICS: TopicCardConfig[] = [
 export default function Dashboard() {
   const navigate = useNavigate();
   const { progress, resetAllProgress } = usePortalProgress();
-  const [activeAssessmentTab, setActiveAssessmentTab] = useState<
-    'anticheat' | 'oral'
-  >('anticheat');
   const [isQrOpen, setIsQrOpen] = useState(false);
 
   useEffect(() => {
@@ -336,52 +332,6 @@ export default function Dashboard() {
               </div>
             </button>
           </div>
-        </section>
-
-        {/* Core Assessment Tools Section */}
-        <section className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
-                <ShieldCheck className="h-4 w-4" />
-                Felles vurderingsverktøy (src/core/assessment)
-              </div>
-              <h2 className="font-display mt-1 text-xl font-bold text-white">
-                Klargjorte moduler for skriftlig og muntlig vurdering
-              </h2>
-            </div>
-
-            <div className="inline-flex rounded-xl border border-slate-800 bg-slate-900/80 p-1">
-              <button
-                type="button"
-                onClick={() => setActiveAssessmentTab('anticheat')}
-                className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
-                  activeAssessmentTab === 'anticheat'
-                    ? 'bg-sky-500/20 text-sky-200 ring-1 ring-sky-400/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Kopisperre-innlevering
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveAssessmentTab('oral')}
-                className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
-                  activeAssessmentTab === 'oral'
-                    ? 'bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-400/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Muntlig AI-sensor
-              </button>
-            </div>
-          </div>
-
-          {activeAssessmentTab === 'anticheat' ? (
-            <AntiCheatAssignment />
-          ) : (
-            <OralAiExaminer />
-          )}
         </section>
       </main>
 
